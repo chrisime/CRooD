@@ -138,6 +138,11 @@ val pomLicenseName = "Apache-2.0"
 val pomLicenseUrl = "https://opensource.org/licenses/Apache-2.0"
 val pomLicenseDist = "repo"
 
+val sourcesJar by tasks.creating(Jar::class) {
+    archiveClassifier.set("sources")
+    from(sourceSets.getByName("main").allSource)
+}
+
 publishing {
     publications {
         create<MavenPublication>(artifactName) {
@@ -146,6 +151,7 @@ publishing {
             version = artifactVersion
 
             from(components["java"])
+            artifact(sourcesJar)
 
             pom.withXml {
                 asNode().apply {
