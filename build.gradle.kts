@@ -178,8 +178,8 @@ publishing {
 
 
 bintray {
-    user = project.findProperty("bintrayUser")?.toString() ?: ""
-    key = project.findProperty("bintrayKey")?.toString() ?: ""
+    user = project.findProperty("bintrayUser")?.toString() ?: System.getenv("bintrayUser") ?: ""
+    key = project.findProperty("bintrayKey")?.toString() ?: System.getenv("bintrayApiKey") ?: ""
     publish = true
 
     setPublications(artifactName)
