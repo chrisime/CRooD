@@ -2,8 +2,6 @@ plugins {
     kotlin("jvm") version "1.4.20"
     `java-library`
 
-    id("nu.studer.jooq") version "5.2"
-
     `maven-publish`
     id("com.jfrog.bintray") version "1.8.5"
 
@@ -12,7 +10,7 @@ plugins {
 
 version = "0.0.2-SNAPSHOT"
 group = "xyz.chrisime"
-description = "CRooD (CRUD Repository)"
+description = "CRooD (an easy-to-use CRUD Repository based on jOOQ)"
 
 val jooqVersion = "3.14.4"
 
@@ -181,13 +179,13 @@ bintray {
     setPublications(artifactName)
 
     pkg.apply {
-        this.repo = "CRooD"
-        this.name = "CRooD"
+        this.repo = "oss"
+        this.name = artifactName
         this.userOrg = username
         this.githubRepo = githubRepository
         this.vcsUrl = pomScmUrl
-//        description = projectName
-        this.setLabels("kotlin", "java", "jooq", "crud", "generation")
+        description = "CRUD Repository to be used in conjunction with included domain generator."
+        this.setLabels("kotlin", "java", "jooq", "crud", "code generation")
         this.setLicenses(pomLicenseName)
         this.desc = description
         this.websiteUrl = pomUrl
