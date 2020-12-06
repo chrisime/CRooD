@@ -32,13 +32,13 @@ import xyz.chrisime.crood.extensions.asType
 import xyz.chrisime.crood.id.CompositeId
 
 /**
- * Common table record service that provides basic CRUD operations.
+ * Common service based on jOOQ that provides basic CRUD operations.
  *
  * @param R table record type: a record contains a row's data
  * @param ID table identifier type (primary key)
  * @param D domain type: a domain contains the values of a single table row
  *
- * @author Christian Meyer <christian.meyer@gmail.com>
+ * @author Christian Meyer &ltchristian.meyer@gmail.com:gt;
  */
 abstract class CRUDService<R : UpdatableRecord<R>, ID : Any, D : IdentifiableDomain>(private val dsl: DSLContext) {
 

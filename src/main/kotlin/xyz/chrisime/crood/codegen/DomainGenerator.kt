@@ -26,7 +26,9 @@ import org.jooq.tools.JooqLogger
 import xyz.chrisime.crood.codegen.annotation.ConstructorGenerator
 
 /**
- * @author Christian Meyer <christian.meyer@gmail.com>
+ * Custom generator which additionally creates a secondary constructors, along with nullable annotations if demanded.
+ *
+ * @author Christian Meyer &lt;christian.meyer@gmail.com&gt;
  */
 open class DomainGenerator : ConstructorGenerator, JavaGenerator() {
 

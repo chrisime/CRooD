@@ -15,7 +15,7 @@
 package xyz.chrisime.crood.id
 
 /**
- * @author Christian Meyer <christian.meyer@gmail.com>
+ * @author Christian Meyer &lt;christian.meyer@gmail.com&gt;
  */
 data class CompositeId3<ID1 : Any, ID2 : Any, ID3 : Any>(private val id1: ID1,
                                                          private val id2: ID2,

@@ -14,17 +14,18 @@
 
 package xyz.chrisime.crood.extensions
 
-import xyz.chrisime.crood.error.GenericError
 import java.lang.reflect.InvocationTargetException
 import java.lang.reflect.ParameterizedType
+import xyz.chrisime.crood.error.GenericError
 
 /**
- * @author Christian Meyer <christian.meyer@gmail.com>
  * Taken from http://stackoverflow.com/questions/2434041/instantiating-generics-type-in-java
+ *
+ * @author Christian Meyer &lt;christian.meyer@gmail.com&gt;
  */
 object GenericExt {
 
-    @Throws(RuntimeException::class)
+    @Throws(GenericError::class)
     fun <T> Any.new(index: Int): T {
         try {
             return getClassAtIndex<T>(index).getDeclaredConstructor().newInstance()

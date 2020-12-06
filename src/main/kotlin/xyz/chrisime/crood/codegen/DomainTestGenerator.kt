@@ -25,7 +25,7 @@ import xyz.chrisime.crood.codegen.annotation.ForeignKey
 import xyz.chrisime.crood.codegen.annotation.Size
 
 /**
- * @author Christian Meyer <christian.meyer@gmail.com>
+ * @author Christian Meyer &lt;christian.meyer@gmail.com&gt;
  */
 class DomainTestGenerator : ConstructorGenerator, JavaGenerator() {
 

@@ -15,7 +15,7 @@
 package xyz.chrisime.crood.id
 
 /**
- * @author Christian Meyer <christian.meyer@gmail.com>
+ * @author Christian Meyer &lt;christian.meyer@gmail.com&gt;
  */
 interface CompositeId {
 
