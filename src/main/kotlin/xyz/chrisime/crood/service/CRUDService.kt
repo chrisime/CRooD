@@ -29,7 +29,7 @@ import xyz.chrisime.crood.error.GenericError
 import xyz.chrisime.crood.extensions.GenericExt.getClassAtIndex
 import xyz.chrisime.crood.extensions.GenericExt.new
 import xyz.chrisime.crood.extensions.asType
-import xyz.chrisime.crood.id.CompositeId
+import xyz.chrisime.crood.id.Identifier
 
 /**
  * Common service based on jOOQ that provides basic CRUD operations.
@@ -171,7 +171,7 @@ abstract class CRUDService<R : UpdatableRecord<R>, ID : Any, D : IdentifiableDom
     }
 
     private fun ID.equal(): Condition = when (val id = this) {
-        is CompositeId -> DSL.row(*pkFields.toTypedArray()).eq(DSL.row(*id.getId()))
+        is Identifier -> DSL.row(*pkFields.toTypedArray()).eq(DSL.row(*id.identifier))
         else           -> pkFields[0].eq(pkFields[0].dataType.convert(id))
     }
 

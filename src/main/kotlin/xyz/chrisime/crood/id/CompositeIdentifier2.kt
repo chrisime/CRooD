@@ -17,11 +17,11 @@ package xyz.chrisime.crood.id
 /**
  * @author Christian Meyer &lt;christian.meyer@gmail.com&gt;
  */
-data class CompositeId2<ID1 : Any, ID2 : Any>(private val id1: ID1, private val id2: ID2) : CompositeId {
+data class CompositeIdentifier2<ID1 : Any, ID2 : Any>(
+    private val id1: ID1, private val id2: ID2
+) : Identifier {
 
-    private val id: Array<out Any> = arrayOf(id1, id2)
-
-    override fun getId(): Array<out Any> = id
+    override val identifier: Array<out Any>
+        get() = arrayOf(id1, id2)
 
 }
-

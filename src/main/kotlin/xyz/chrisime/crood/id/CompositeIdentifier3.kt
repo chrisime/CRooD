@@ -17,8 +17,11 @@ package xyz.chrisime.crood.id
 /**
  * @author Christian Meyer &lt;christian.meyer@gmail.com&gt;
  */
-interface CompositeId {
+data class CompositeIdentifier3<ID1 : Any, ID2 : Any, ID3 : Any>(
+    private val id1: ID1, private val id2: ID2, private val id3: ID3
+) : Identifier {
 
-    fun getId(): Array<out Any>
+    override val identifier: Array<out Any>
+        get() = arrayOf(id1, id2, id3)
 
 }
