@@ -1,1 +1,1 @@
-rootProject.name = "CRooD Repository Library"
+rootProject.name = "CRooD"

@@ -2,7 +2,7 @@ plugins {
     kotlin("jvm") version "1.4.20"
     `java-library`
 
-    id("nu.studer.jooq") version "5.2"// apply false
+    id("nu.studer.jooq") version "5.2"
 
     `maven-publish`
     id("com.jfrog.bintray") version "1.8.5"
@@ -10,10 +10,11 @@ plugins {
     id("com.github.ben-manes.versions") version "0.36.0"
 }
 
-version = "0.1-SNAPSHOT"
+version = "0.0.1-SNAPSHOT"
 group = "xyz.chrisime"
+description = "CRooD (CRUD Repository)"
 
-val jooqVersion = "3.14.+"
+val jooqVersion = "3.14.4"
 
 repositories {
     jcenter()
@@ -21,16 +22,11 @@ repositories {
 }
 
 dependencies {
-    implementation(enforcedPlatform("org.jetbrains.kotlin:kotlin-bom"))
-    implementation("org.jetbrains.kotlin:kotlin-stdlib")
-
-    implementation(enforcedPlatform("org.jooq:jooq-parent:${jooqVersion}"))
-
-    implementation("org.jooq:jooq")
-//    implementation("org.jooq:jooq-kotlin")
-
+    api(platform("org.jooq:jooq-parent:${jooqVersion}"))
     compileOnly("org.jooq:jooq-codegen")
     compileOnly("org.jooq:jooq-meta")
+
+    api("org.jetbrains.kotlin:kotlin-stdlib")
 
     testImplementation("org.jetbrains.kotlin:kotlin-test") {
         isTransitive = false
@@ -39,18 +35,6 @@ dependencies {
         isTransitive = false
     }
 }
-
-//configurations {
-//    compileClasspath {
-//        resolutionStrategy.eachDependency {
-//            if (requested.group == "org.jooq") {
-//                useVersion("3.14.+")
-//                useTarget("org.jooq:jooq:3.14.+")
-//                useTarget("org.jooq:jooq-kotlin:3.14.+")
-//            }
-//        }
-//    }
-//}
 
 configurations.all {
     resolutionStrategy.dependencySubstitution {
@@ -81,6 +65,8 @@ tasks {
     compileKotlin {
         kotlinOptions {
             jvmTarget = sourceCompatibility
+            apiVersion = "1.4"
+            languageVersion = "1.4"
 
             freeCompilerArgs = listOf(
                 "-Xjsr305=strict",
@@ -91,6 +77,8 @@ tasks {
     compileTestKotlin {
         kotlinOptions {
             jvmTarget = sourceCompatibility
+            apiVersion = "1.4"
+            languageVersion = "1.4"
 
             freeCompilerArgs = listOf(
                 "-Xjsr305=strict",
@@ -103,6 +91,10 @@ tasks {
         manifest {
             attributes(
                 mapOf(
+                    "Bundle-Name" to "crood",
+                    "Bundle-Version" to project.version,
+                    "Bundle-License" to pomLicenseUrl,
+                    "Built-By" to "Gradle ${gradle.gradleVersion}",
                     "Implementation-Title" to project.name,
                     "Implementation-Version" to project.version
                 )
@@ -128,4 +120,85 @@ fun isNonStable(version: String): Boolean {
     val regex = "^[0-9,.v-]+(-r)?$".toRegex()
     val isStable = stableKeyword || regex.matches(version)
     return isStable.not()
+}
+
+val username = "chrisime"
+val name = "Christian Meyer"
+val githubRepository = "${username}/crood"
+val githubReadme = "README.md"
+
+val artifactName = "crood"
+val artifactGroup = project.group.toString()
+val artifactVersion = project.version.toString()
+
+val pomUrl = "https://github.com/${githubRepository}"
+val pomScmUrl = "https://github.com/${githubRepository}"
+val pomIssueUrl = "https://github.com/${githubRepository}/issues"
+val pomDesc = "https://github.com/${githubRepository}"
+
+val pomLicenseName = "Apache-2.0"
+val pomLicenseUrl = "https://opensource.org/licenses/Apache-2.0"
+val pomLicenseDist = "repo"
+
+publishing {
+    publications {
+        create<MavenPublication>(artifactName) {
+            groupId = artifactGroup
+            artifactId = artifactName
+            version = artifactVersion
+
+            from(components["java"])
+
+            pom.withXml {
+                asNode().apply {
+                    appendNode("name", artifactName) // rootProject.name
+                    appendNode("description", pomDesc)
+                    appendNode("url", pomUrl)
+                    appendNode("licenses").appendNode("license").apply {
+                        appendNode("name", pomLicenseName)
+                        appendNode("url", pomLicenseUrl)
+                        appendNode("distribution", pomLicenseDist)
+                    }
+                    appendNode("developers").appendNode("developer").apply {
+                        appendNode("id", username)
+                        appendNode("name", name)
+                    }
+                    appendNode("scm").apply {
+                        appendNode("url", pomScmUrl)
+                    }
+                }
+            }
+        }
+    }
+}
+
+
+bintray {
+    user = project.findProperty("bintrayUser")?.toString() ?: ""
+    key = project.findProperty("bintrayKey")?.toString() ?: ""
+    publish = true
+
+    setPublications(artifactName)
+
+    pkg.apply {
+        this.repo = "CRooD"
+        this.name = "CRooD"
+        this.userOrg = username
+        this.githubRepo = githubRepository
+        this.vcsUrl = pomScmUrl
+//        description = projectName
+        this.setLabels("kotlin", "java", "jooq", "crud", "generation")
+        this.setLicenses(pomLicenseName)
+        this.desc = description
+        this.websiteUrl = pomUrl
+        this.issueTrackerUrl = pomIssueUrl
+        this.githubReleaseNotesFile = githubReadme
+
+        version.apply {
+            name = artifactVersion
+            desc = pomDesc
+//            released = ""
+            vcsTag = artifactVersion
+        }
+    }
 }
