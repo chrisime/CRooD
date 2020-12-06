@@ -10,7 +10,7 @@ plugins {
     id("com.github.ben-manes.versions") version "0.36.0"
 }
 
-version = "0.0.1"
+version = "0.0.2-SNAPSHOT"
 group = "xyz.chrisime"
 description = "CRooD (CRUD Repository)"
 
