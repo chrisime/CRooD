@@ -8,9 +8,9 @@ plugins {
     id("com.github.ben-manes.versions") version "0.36.0"
 }
 
-version = "0.0.2"
+version = "0.0.3-SNAPSHOT"
 group = "xyz.chrisime"
-description = "CRooD (an easy-to-use CRUD Repository based on jOOQ)"
+description = "CRooD (an easy-to-use CRUD Base Repository built upon jOOQ)"
 
 val jooqVersion = "3.14.4"
 
