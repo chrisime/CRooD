@@ -1,4 +1,4 @@
-package xyz.chrisime.crood.generator.annotation
+package xyz.chrisime.crood.codegen.annotation
 
 @MustBeDocumented
 @kotlin.annotation.Retention(AnnotationRetention.RUNTIME)

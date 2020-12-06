@@ -12,17 +12,17 @@
  * limitations under the License.
  */
 
-package de.openvalue.jooq.generator
+package xyz.chrisime.crood.codegen
 
-import xyz.chrisime.crood.generator.annotation.ConstructorGenerator
-import xyz.chrisime.crood.generator.annotation.ForeignKey
-import xyz.chrisime.crood.generator.annotation.Size
 import org.jooq.codegen.GeneratorStrategy
 import org.jooq.codegen.GeneratorStrategy.Mode.POJO
 import org.jooq.codegen.JavaGenerator
 import org.jooq.codegen.JavaWriter
 import org.jooq.meta.ColumnDefinition
 import org.jooq.meta.TableDefinition
+import xyz.chrisime.crood.codegen.annotation.ConstructorGenerator
+import xyz.chrisime.crood.codegen.annotation.ForeignKey
+import xyz.chrisime.crood.codegen.annotation.Size
 
 /**
  * @author Christian Meyer <christian.meyer@gmail.com>
@@ -48,14 +48,14 @@ class DomainTestGenerator : ConstructorGenerator, JavaGenerator() {
         columns.forEach { column ->
             val type = column.type
             val len = type.length
-            val annotation = if ("java.lang.String" == getJavaType(type) && len > 0)
+            val annotation = if ("java.lang.String" == getJavaType(type, out) && len > 0)
                 "@${Size::class.simpleName}(max = ${len})"
             else
                 ""
 
             out.tab(1)
                 .println(annotation)
-                .println("private ${out.ref(getJavaType(column.type, POJO))} ${strategy.getJavaMemberName(column, POJO)};")
+                .println("private ${out.ref(getJavaType(column.type, out))} ${strategy.getJavaMemberName(column, POJO)};")
         }
 
         (0..columns.size).forEach { i ->
@@ -116,7 +116,7 @@ class DomainTestGenerator : ConstructorGenerator, JavaGenerator() {
                     .println("public void ${cleansedSetterName}Domain(${clsName} ${cleansedMemberName}Domain) { this.${cleansedMemberName}Domain = ${cleansedMemberName}Domain; }")
                 out.println().tab(1)
             } else {
-                TODO("composite key handling")
+                TODO("composite key handling not yet implemented")
             }
         }
     }

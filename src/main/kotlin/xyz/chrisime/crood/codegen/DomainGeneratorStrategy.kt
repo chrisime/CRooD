@@ -1,4 +1,4 @@
-package xyz.chrisime.crood.strategy
+package xyz.chrisime.crood.codegen
 
 import xyz.chrisime.crood.domain.IdentifiableDomain
 import org.jooq.codegen.DefaultGeneratorStrategy

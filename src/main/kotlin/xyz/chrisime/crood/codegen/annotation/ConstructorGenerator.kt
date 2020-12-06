@@ -1,4 +1,4 @@
-package xyz.chrisime.crood.generator.annotation
+package xyz.chrisime.crood.codegen.annotation
 
 import org.jooq.codegen.JavaWriter
 import org.jooq.meta.TableDefinition
