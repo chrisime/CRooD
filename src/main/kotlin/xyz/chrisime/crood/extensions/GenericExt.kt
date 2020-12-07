@@ -16,6 +16,7 @@ package xyz.chrisime.crood.extensions
 
 import java.lang.reflect.InvocationTargetException
 import java.lang.reflect.ParameterizedType
+import kotlin.reflect.full.superclasses
 import xyz.chrisime.crood.error.GenericError
 
 /**
@@ -23,33 +24,34 @@ import xyz.chrisime.crood.error.GenericError
  *
  * @author Christian Meyer &lt;christian.meyer@gmail.com&gt;
  */
-object GenericExt {
+@Throws(GenericError::class)
+fun <T> Any.newInstance(index: Int = 0): T {
+    try {
+        return getClassAtIndex<T>(index).getDeclaredConstructor().newInstance()
+    } catch (ex: Exception) {
+        when (ex) {
+            is InstantiationException, is IllegalAccessException,
+            is NoSuchMethodException, is InvocationTargetException -> {
+                throw GenericError.General("Can't instantiate obj of type '${this.javaClass.typeName}'.", ex)
+            }
 
-    @Throws(GenericError::class)
-    fun <T> Any.new(index: Int): T {
-        try {
-            return getClassAtIndex<T>(index).getDeclaredConstructor().newInstance()
-        } catch (ex: Exception) {
-            when (ex) {
-                is InstantiationException, is IllegalAccessException,
-                is NoSuchMethodException, is InvocationTargetException -> {
-                    throw GenericError.General("Can't instantiate obj of type '${this.javaClass.typeName}'.", ex)
-                }
-
-                else                                                   -> {
-                    throw GenericError.General("Unknown error: ${ex.localizedMessage}", ex)
-                }
+            else -> {
+                throw GenericError.General("Unknown error: ${ex.localizedMessage}", ex)
             }
         }
     }
-
-    fun <T> Any.getClassAtIndex(index: Int): Class<T> {
-        val superClass = this.javaClass.genericSuperclass.asType<ParameterizedType>()
-
-        return when (val type = superClass.actualTypeArguments[index]) {
-            is ParameterizedType -> type.rawType.asType()
-            else                 -> type.asType()
-        }
-    }
-
 }
+
+fun <T> Any.getClassAtIndex(index: Int): Class<T> {
+    val superClass = this::class.superclasses[0].java.genericSuperclass.asType<ParameterizedType>()
+
+    return when (val type = superClass.actualTypeArguments[index]) {
+        is ParameterizedType -> type.rawType.asType()
+        else -> type.asType()
+    }
+}
+
+inline fun <reified T : Any> Any.asType(): T = if (T::class.java.isAssignableFrom(this::class.java))
+    this as T
+else
+    throw TypeCastException("Value cannot be cast to ${T::class}")
