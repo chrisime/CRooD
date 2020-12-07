@@ -8,7 +8,7 @@ plugins {
     id("com.github.ben-manes.versions") version "0.36.0"
 }
 
-version = "0.0.3-SNAPSHOT"
+version = "0.0.3"
 group = "xyz.chrisime"
 description = "CRooD (an easy-to-use CRUD Base Repository built upon jOOQ)"
 
@@ -25,6 +25,7 @@ dependencies {
     compileOnly("org.jooq:jooq-meta")
 
     api("org.jetbrains.kotlin:kotlin-stdlib")
+    implementation("org.jetbrains.kotlin:kotlin-reflect")
 
     testImplementation("org.jetbrains.kotlin:kotlin-test") {
         isTransitive = false
