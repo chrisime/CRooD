@@ -22,7 +22,7 @@ jobs:
           release_name: Release ${{ github.ref }}
           body: |
             Changes in this release
-            - have all methods in CRUDService public now
-            - fixed bug while getting generic type arguments
+            - ...
+            - ...
           draft: false
           prerelease: false
