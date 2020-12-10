@@ -19,6 +19,7 @@ import java.util.stream.Stream
 import org.jooq.Condition
 import org.jooq.DSLContext
 import org.jooq.Field
+import org.jooq.Record
 import org.jooq.Table
 import org.jooq.TableField
 import org.jooq.UpdatableRecord
@@ -46,7 +47,7 @@ abstract class CRUDService<R : UpdatableRecord<R>, ID : Any, D : IdentifiableDom
 
     private val cDomain: Class<D>
 
-    private val pkFields: List<TableField<R, ID>>
+    private val pkFields: Array<TableField<Record, ID>>
 
     init {
         // TODO: batch operations are not fully supported yet, see https://github.com/jOOQ/jOOQ/issues/5383
@@ -61,6 +62,10 @@ abstract class CRUDService<R : UpdatableRecord<R>, ID : Any, D : IdentifiableDom
         dsl.configuration().recordMapperProvider().provide(rTable.recordType(), cDomain)
     }
 
+    /**
+     * Returns count of rows in table filtered by given condition.
+     * @param condition predicate to filter result for
+     */
     fun fetchCountWhere(condition: () -> Condition): Int =
         dsl.selectCount().from(rTable).where(condition()).fetchOne(0, Int::class.javaPrimitiveType)
             ?: throw GenericError.Database("no results in ${rTable.name}")
@@ -106,13 +111,13 @@ abstract class CRUDService<R : UpdatableRecord<R>, ID : Any, D : IdentifiableDom
     fun findOptionalWhere(condition: () -> Condition): Optional<D> =
         dsl.selectFrom(rTable).where(condition()).fetchOptionalInto(cDomain)
 
-    fun findById(id: ID): D = dsl.selectFrom(rTable).where(id.equal()).fetchOneInto(cDomain)
+    fun findById(id: ID): D = dsl.selectFrom(rTable).where(id.isEqual()).fetchOneInto(cDomain)
         ?: throw GenericError.Database("no results in ${rTable.name}")
 
     fun findOptionalById(id: ID): Optional<D> =
-        dsl.selectFrom(rTable).where(id.equal()).fetchOptionalInto(cDomain)
+        dsl.selectFrom(rTable).where(id.isEqual()).fetchOptionalInto(cDomain)
 
-    fun existsById(id: ID): Boolean = dsl.fetchExists(dsl.selectFrom(rTable).where(id.equal()))
+    fun existsById(id: ID): Boolean = dsl.fetchExists(dsl.selectFrom(rTable).where(id.isEqual()))
 
     fun existsWhere(condition: () -> Condition): Boolean =
         dsl.fetchExists(dsl.selectFrom(rTable).where(condition()))
@@ -131,7 +136,7 @@ abstract class CRUDService<R : UpdatableRecord<R>, ID : Any, D : IdentifiableDom
 
     fun update(sources: Collection<D>): IntArray = updateOrDelete(sources, Operation.UPDATE)
 
-    fun deleteById(id: ID): Int = dsl.deleteFrom(rTable).where(id.equal()).execute()
+    fun deleteById(id: ID): Int = dsl.deleteFrom(rTable).where(id.isEqual()).execute()
 
     fun deleteWhere(condition: () -> Condition): Int = dsl.deleteFrom(rTable).where(condition()).execute()
 
@@ -141,7 +146,7 @@ abstract class CRUDService<R : UpdatableRecord<R>, ID : Any, D : IdentifiableDom
 
     fun truncate(): Int = dsl.truncate(rTable).restartIdentity().cascade().execute()
 
-    private fun setFieldForUpdateOrDelete(domains: Iterable<D>): List<R> = domains.map {
+    private fun setFieldForUpdateOrDelete(domains: Iterable<D>): List<UpdatableRecord<*>> = domains.map {
         val record = dsl.newRecord(rTable, it)
         pkFields.forEach { pkField ->
             record.changed(pkField, false)
@@ -168,8 +173,8 @@ abstract class CRUDService<R : UpdatableRecord<R>, ID : Any, D : IdentifiableDom
         }
     }
 
-    private fun ID.equal(): Condition = when (val id = this) {
-        is Identifier -> DSL.row(*pkFields.toTypedArray()).eq(DSL.row(*id.identifier))
+    private fun ID.isEqual(): Condition = when (val id = this) {
+        is Identifier -> DSL.row(*pkFields).eq(DSL.row(*id.identifier))
         else -> pkFields[0].eq(pkFields[0].dataType.convert(id))
     }
 
@@ -177,7 +182,7 @@ abstract class CRUDService<R : UpdatableRecord<R>, ID : Any, D : IdentifiableDom
 
     private fun Table<*>.getPrimaryKeys() = this.keys
         .filter { it.isPrimary }
-        .flatMap { it.fields.asType<List<TableField<R, ID>>>() }
+        .flatMap { it.fields.asType<List<TableField<Record, ID>>>() }.toTypedArray()
 
     private enum class Operation {
         UPDATE, DELETE
