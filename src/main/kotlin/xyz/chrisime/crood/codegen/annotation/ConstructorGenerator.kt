@@ -5,7 +5,7 @@ import org.jooq.meta.TableDefinition
 
 interface ConstructorGenerator {
 
-    fun generateSecondaryConstructors(table: TableDefinition, out: JavaWriter) {
+    fun generateSecondaryConstructors(tableDefinition: TableDefinition, out: JavaWriter) {
         // by default do nothing
     }
 
