@@ -19,7 +19,7 @@ jobs:
           java-version: 11
       - name: Grant execute permission
         run: chmod +x gradlew
-      - name: Publish library to Bintry
+      - name: Publish v${{ github.ref }} to Bintry
         env:
           bintrayUser: ${{ secrets.BINTRAY_USER }}
           bintrayApiKey: ${{ secrets.BINTRAY_API_KEY }}
