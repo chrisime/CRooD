@@ -8,7 +8,7 @@ plugins {
     id("com.github.ben-manes.versions") version "0.36.0"
 }
 
-version = "0.1.0"
+version = "0.1.1-SNAPSHOT"
 group = "xyz.chrisime"
 description = "CRooD (an easy-to-use CRUD Base Repository built upon jOOQ)"
 
