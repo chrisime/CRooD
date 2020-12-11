@@ -50,8 +50,6 @@ abstract class CRUDService<R : UpdatableRecord<R>, ID : Any, D : IdentifiableDom
     private val pkFields: Array<TableField<Record, ID>>
 
     init {
-        // TODO: batch operations are not fully supported yet, see https://github.com/jOOQ/jOOQ/issues/5383
-        dsl.settings().isExecuteWithOptimisticLocking = true
         dsl.settings().isRenderFormatted = true
 
         rTable = newInstance<UpdatableRecord<R>>().table
