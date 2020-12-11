@@ -1,12 +1,14 @@
 name: Publish to Bintray
 
 on:
-  release:
-    types: [published]
+  watch:
+    types: [started]
 
 jobs:
   publish:
     runs-on: ubuntu-latest
+
+    if: github.actor == github.event.repository.owner.login
 
     steps:
       - name: Clone repository
