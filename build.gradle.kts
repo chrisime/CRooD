@@ -27,6 +27,8 @@ dependencies {
     api("org.jetbrains.kotlin:kotlin-stdlib")
     implementation("org.jetbrains.kotlin:kotlin-reflect")
 
+    compileOnly("org.slf4j:slf4j-api")
+
     testImplementation("org.jetbrains.kotlin:kotlin-test") {
         isTransitive = false
     }
