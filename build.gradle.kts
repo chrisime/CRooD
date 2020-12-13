@@ -1,5 +1,5 @@
 plugins {
-    kotlin("jvm") version "1.4.20"
+    kotlin("jvm") version "1.4.21"
     `java-library`
 
     `maven-publish`
@@ -8,7 +8,7 @@ plugins {
     id("com.github.ben-manes.versions") version "0.36.0"
 }
 
-version = "0.1.1-SNAPSHOT"
+version = "0.1.1"
 group = "xyz.chrisime"
 description = "CRooD (an easy-to-use CRUD Base Repository built upon jOOQ)"
 
@@ -179,7 +179,6 @@ publishing {
     }
 }
 
-
 bintray {
     user = project.findProperty("bintrayUser")?.toString() ?: System.getenv("bintrayUser") ?: ""
     key = project.findProperty("bintrayKey")?.toString() ?: System.getenv("bintrayApiKey") ?: ""
@@ -204,7 +203,7 @@ bintray {
         version.apply {
             name = artifactVersion
             desc = pomDesc
-//            released = ""
+            released = ""
             vcsTag = artifactVersion
         }
     }
