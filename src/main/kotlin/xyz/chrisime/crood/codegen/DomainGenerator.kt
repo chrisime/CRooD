@@ -128,12 +128,11 @@ open class DomainGenerator : ConstructorGenerator, JavaGenerator() {
         val isVersionColumn = optLckMatcher(column.database.recordVersionFields)(column.name)
         val isTstampColumn = optLckMatcher(column.database.recordTimestampFields)(column.name)
 
-        if (column.type.isIdentity) {
+        if (column.type.isIdentity || isVersionColumn || isTstampColumn) {
             out.println("@%s", Transient::class.java)
-            super.generatePojoGetter(column, index, out)
-        } else if (!isVersionColumn && !isTstampColumn) {
-            super.generatePojoGetter(column, index, out)
         }
+
+        super.generatePojoGetter(column, index, out)
     }
 
     companion object {
