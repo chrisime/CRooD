@@ -29,8 +29,6 @@ import xyz.chrisime.crood.codegen.annotation.Size
  */
 class DomainTestGenerator : ConstructorGenerator, JavaGenerator() {
 
-    private fun <T> list(vararg objects: T): List<T> = objects.filter { it != "" }
-
     override fun generatePojo(table: TableDefinition, out: JavaWriter) {
         val strategy = super.getStrategy()
         val className = strategy.getJavaClassName(table, POJO)
@@ -41,7 +39,7 @@ class DomainTestGenerator : ConstructorGenerator, JavaGenerator() {
 
         val columns = table.columns
 
-        out.println("public class ${className}[[before= extends ][${list(superName)}]][[before= implements ][${interfaces}]] {").println()
+        out.println("public class ${className}[[before= extends ][${superName}]][[before= implements ][${interfaces}]] {").println()
 
         createDefaultConstructor(out, className, columns)
 
