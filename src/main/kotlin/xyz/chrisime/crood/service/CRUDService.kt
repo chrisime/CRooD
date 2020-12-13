@@ -78,8 +78,8 @@ abstract class CRUDService<R : UpdatableRecord<R>, ID : Any, D : IdentifiableDom
     fun <F> fetchOptional(field: Field<F>, value: F): Optional<F> =
         dsl.select(field).from(rTable).where(field.eq(value)).fetchOptionalInto(field.type)
 
-    fun <F> fetchAll(field: Field<F>, vararg values: F): Sequence<F> =
-        dsl.select(field).from(rTable).where(field.`in`(*values)).fetchStreamInto(field.type).toSequence()
+    fun <F> fetchAll(field: Field<F>, vararg values: F): Stream<F> =
+        dsl.select(field).from(rTable).where(field.`in`(*values)).fetchStreamInto(field.type)
 
     fun <F> fetchOneWhere(field: Field<F>, condition: () -> Condition): F = try {
         dsl.select(field).from(rTable).where(condition()).fetchOneInto(field.type)
@@ -91,13 +91,13 @@ abstract class CRUDService<R : UpdatableRecord<R>, ID : Any, D : IdentifiableDom
     fun <F> fetchOptionalWhere(field: Field<F>, condition: () -> Condition): Optional<F> =
         dsl.select(field).from(rTable).where(condition()).fetchOptionalInto(field.type)
 
-    fun <F> fetchAllWhere(field: Field<F>, condition: () -> Condition): Sequence<F> =
-        dsl.select(field).from(rTable).where(condition()).fetchStreamInto(field.type).toSequence()
+    fun <F> fetchAllWhere(field: Field<F>, condition: () -> Condition): Stream<F> =
+        dsl.select(field).from(rTable).where(condition()).fetchStreamInto(field.type)
 
-    fun findAll(): Sequence<D> = dsl.selectFrom(rTable).fetchStreamInto(cDomain).toSequence()
+    fun findAll(): Stream<D> = dsl.selectFrom(rTable).fetchStreamInto(cDomain)
 
-    fun findAllWhere(condition: () -> Condition): Sequence<D> =
-        dsl.selectFrom(rTable).where(condition()).fetchStreamInto(cDomain).toSequence()
+    fun findAllWhere(condition: () -> Condition): Stream<D> =
+        dsl.selectFrom(rTable).where(condition()).fetchStreamInto(cDomain)
 
     fun findOneWhere(condition: () -> Condition): D = try {
         dsl.selectFrom(rTable).where(condition()).fetchOneInto(cDomain)
@@ -152,20 +152,18 @@ abstract class CRUDService<R : UpdatableRecord<R>, ID : Any, D : IdentifiableDom
         record
     }
 
-    private fun updateOrDelete(sources: Collection<D>, operation: Operation): IntArray {
-        return when {
-            sources.isEmpty() -> intArrayOf()
-            else -> setFieldForUpdateOrDelete(sources).let {
-                when (it.size) {
-                    1 ->
-                        when (operation) {
-                            Operation.DELETE -> intArrayOf(it[0].delete())
-                            else -> intArrayOf(it[0].update())
-                        }
-                    else -> when (operation) {
-                        Operation.DELETE -> it.map { r -> r.delete() }.toIntArray()
-                        else -> it.map { r -> r.update() }.toIntArray()
+    private fun updateOrDelete(sources: Collection<D>, operation: Operation): IntArray = when {
+        sources.isEmpty() -> intArrayOf()
+        else -> setFieldForUpdateOrDelete(sources).let {
+            when (it.size) {
+                1 ->
+                    when (operation) {
+                        Operation.DELETE -> intArrayOf(it[0].delete())
+                        Operation.UPDATE -> intArrayOf(it[0].update())
                     }
+                else -> when (operation) {
+                    Operation.DELETE -> it.map { r -> r.delete() }.toIntArray()
+                    Operation.UPDATE -> it.map { r -> r.update() }.toIntArray()
                 }
             }
         }
@@ -175,8 +173,6 @@ abstract class CRUDService<R : UpdatableRecord<R>, ID : Any, D : IdentifiableDom
         is Identifier -> DSL.row(*pkFields).eq(DSL.row(*id.identifier))
         else -> pkFields[0].eq(pkFields[0].dataType.convert(id))
     }
-
-    private fun <T> Stream<T>.toSequence(): Sequence<T> = Sequence { iterator() }
 
     private fun Table<*>.getPrimaryKeys() = this.keys
         .filter { it.isPrimary }
