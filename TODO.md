@@ -1,16 +1,20 @@
 # TODO
 
 ## General
-* Wiki: finish documentation
+* Wiki: finish documentation :x:
 
 ### Release v0.1.x
-* remove optimistic locking related fields from domain objects if possible
-* write some tests
+* remove optimistic locking related fields from domain objects if possible :heavy_check_mark:
 
 ### Release v0.2.0
-* generate Kotlin code
-*
+* generate Kotlin code :heavy_check_mark:
+* allow other kind of primary keys (except those that can by auto incremented) :heavy_check_mark:
 
-### Release v0.3.0
-* make everything more configurable
-*
+### Release 0.2.x
+* write some tests :x:
+
+### Release v0.3.x
+* allow composite primary keys :x:
+
+### Release v0.4.x
+* make everything more configurable :x:
