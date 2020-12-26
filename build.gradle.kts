@@ -12,15 +12,13 @@ version = "0.1.2-SNAPSHOT"
 group = "xyz.chrisime"
 description = "CRooD (an easy-to-use CRUD Base Repository built upon jOOQ)"
 
-val jooqVersion = "3.14.4"
-
 repositories {
     jcenter()
     mavenCentral()
 }
 
 dependencies {
-    api(platform("org.jooq:jooq-parent:${jooqVersion}"))
+    api(platform("org.jooq:jooq-parent:3.14.4"))
     compileOnly("org.jooq:jooq-codegen")
     compileOnly("org.jooq:jooq-meta")
 
@@ -34,26 +32,6 @@ dependencies {
     }
     testImplementation("org.jetbrains.kotlin:kotlin-test-junit") {
         isTransitive = false
-    }
-}
-
-configurations.all {
-    resolutionStrategy.dependencySubstitution {
-        substitute(module("org.jooq:jooq-kotlin"))
-            .using(module("org.jooq:jooq-kotlin:${jooqVersion}"))
-            .withoutClassifier()
-
-        substitute(module("org.jooq:jooq"))
-            .using(module("org.jooq:jooq:${jooqVersion}"))
-            .withoutClassifier()
-
-        substitute(module("org.jooq:jooq-codegen"))
-            .using(module("org.jooq:jooq-codegen:${jooqVersion}"))
-            .withoutClassifier()
-
-        substitute(module("org.jooq:jooq-meta"))
-            .using(module("org.jooq:jooq-meta:${jooqVersion}"))
-            .withoutClassifier()
     }
 }
 
