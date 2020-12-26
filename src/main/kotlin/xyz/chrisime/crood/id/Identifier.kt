@@ -20,6 +20,5 @@ package xyz.chrisime.crood.id
 interface Identifier {
 
     val identifier: Array<out Any>
-//    fun getIdentifier(): Array<out Any>
 
 }
