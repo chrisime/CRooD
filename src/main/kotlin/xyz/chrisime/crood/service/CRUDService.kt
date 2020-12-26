@@ -14,8 +14,6 @@
 
 package xyz.chrisime.crood.service
 
-import java.util.*
-import java.util.stream.Stream
 import org.jooq.Condition
 import org.jooq.DSLContext
 import org.jooq.Field
@@ -31,6 +29,8 @@ import xyz.chrisime.crood.extensions.asType
 import xyz.chrisime.crood.extensions.getClassAtIndex
 import xyz.chrisime.crood.extensions.newInstance
 import xyz.chrisime.crood.id.Identifier
+import java.util.Optional
+import java.util.stream.Stream
 
 /**
  * Common service based on jOOQ that provides basic CRUD operations.
@@ -145,11 +145,12 @@ abstract class CRUDService<R : UpdatableRecord<R>, ID : Any, D : IdentifiableDom
     fun truncate(): Int = dsl.truncate(rTable).restartIdentity().cascade().execute()
 
     private fun setFieldForUpdateOrDelete(domains: Iterable<D>): List<UpdatableRecord<*>> = domains.map {
-        val record = dsl.newRecord(rTable, it)
-        pkFields.forEach { pkField ->
-            record.changed(pkField, false)
+        with(dsl.newRecord(rTable, it)) {
+            pkFields.forEach { pkField ->
+                changed(pkField, false)
+            }
+            this
         }
-        record
     }
 
     private fun updateOrDelete(sources: Collection<D>, operation: Operation): IntArray = when {
