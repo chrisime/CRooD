@@ -14,28 +14,45 @@
 
 package xyz.chrisime.crood.codegen
 
-import java.beans.ConstructorProperties
-import java.beans.Transient
 import org.jooq.codegen.GeneratorStrategy.Mode.POJO
 import org.jooq.codegen.JavaGenerator
 import org.jooq.codegen.JavaWriter
-import org.jooq.impl.SQLDataType
+import org.jooq.meta.ColumnDefinition
 import org.jooq.meta.Definition
 import org.jooq.meta.TableDefinition
 import org.jooq.meta.TypedElementDefinition
 import org.jooq.tools.JooqLogger
-import xyz.chrisime.crood.codegen.annotation.ConstructorGenerator
+import xyz.chrisime.crood.codegen.CRooDGenerator.Companion.Language.Java
+import xyz.chrisime.crood.codegen.CRooDGenerator.Companion.optimisticLockMatcher
 
 /**
  * Custom generator which additionally creates a secondary constructors, along with nullable annotations if demanded.
  *
  * @author Christian Meyer &lt;christian.meyer@gmail.com&gt;
  */
-open class DomainGenerator : ConstructorGenerator, JavaGenerator() {
+open class DomainGenerator : CRooDGenerator, JavaGenerator() {
 
-    init {
-        this.setGenerateComments(false)
-        this.setGenerateJavadoc(false)
+    override fun generatePojo(table: TableDefinition, out: JavaWriter) {
+        generatePojoHeader(table, out, Java)
+
+        val columns = table.columns
+
+        generatePojoCopyConstructor(table, out)
+        generatePojoMultiConstructor(table, out)
+
+        columns.forEach { column ->
+            out.println(
+                "private final %s %s;",
+                out.ref(getJavaType(column.getType(resolver(out, POJO)), out, POJO)),
+                getStrategy().getJavaMemberName(column, POJO)
+            )
+        }
+
+        columns.forEach {
+            generatePojoGetter(it, 0, out)
+        }
+
+        generatePojoFooter(table, out, Java, ::generatePojoEqualsAndHashCode, ::generatePojoToString, ::closeJavaWriter)
     }
 
     override fun generatePojoMultiConstructor(definition: Definition, out: JavaWriter) {
@@ -46,114 +63,122 @@ open class DomainGenerator : ConstructorGenerator, JavaGenerator() {
                     return
                 }
 
-                generateCtorPropertiesAnnotation(definition, out)
-                generateSecondaryConstructors(definition, out)
+                val versionMatcher: (String) -> Boolean = optimisticLockMatcher(definition.database.recordVersionFields)
+                val timestampMatcher: (String) -> Boolean = optimisticLockMatcher(definition.database.recordTimestampFields)
+                val columns = definition.columns
+                val properties = columns.filterNot {
+                    versionMatcher(it.name) || timestampMatcher(it.name)
+                }.map {
+                    "\"${getStrategy().getJavaMemberName(it, POJO)}\""
+                }
+                out.println("\n    @%s({ [[%s]] })", out.ref("java.beans.ConstructorProperties"), properties)
+                if (columns.size == 1 && columns[0].type.isIdentity) {
+                    log.info("Table ${definition.name} only has one attribute which is a primary key, skipping.")
+                } else if (columns.size == 2 && columns[1].type.isNullable) {
+                    log.info("Table's second attribute is nullable, skipping.")
+                } else {
+                    if (definition.primaryKey.keyColumns.size == 1) {
+                        generateConstructor(definition, out)
+                    } else {
+                        generateCompositeKeyConstructor(definition, out)
+                    }
+                }
             }
-
             else -> {
                 log.warn("other definition than TableDefinition not allowed")
             }
         }
     }
 
-    private fun generateCtorPropertiesAnnotation(table: TableDefinition, out: JavaWriter) {
-        val versionMatcher: (String) -> Boolean = optLckMatcher(table.database.recordVersionFields)
-        val timestampMatcher: (String) -> Boolean = optLckMatcher(table.database.recordTimestampFields)
+    override fun generateConstructor(tableDefinition: TableDefinition, out: JavaWriter) {
+        val keyColumns = tableDefinition.primaryKey.keyColumns
+        val versionMatcher: (String) -> Boolean = optimisticLockMatcher(tableDefinition.database.recordVersionFields)
+        val timestampMatcher: (String) -> Boolean = optimisticLockMatcher(tableDefinition.database.recordTimestampFields)
 
-        val properties = table.columns.filterNot {
-            versionMatcher(it.name) || timestampMatcher(it.name)
-        }.map {
-            "\"${getStrategy().getJavaMemberName(it, POJO)}\""
-        }
+        log.info("Generating secondary constructor with primary key ${keyColumns[0].name}.")
 
-        out.println("\n    @%s({ [[%s]] })", ConstructorProperties::class.java, properties)
-    }
+        val strategy = getStrategy()
 
-    override fun generateSecondaryConstructors(tableDefinition: TableDefinition, out: JavaWriter) {
-        val columns = tableDefinition.columns
+        val ctorArgs = mutableListOf<String>()
+        val params = mutableListOf<String>()
 
-        if (columns.size == 1 && columns[0].type.isIdentity) {
-            // we don't generate domain objects for tables having only one attribute
-            log.info("Table ${tableDefinition.name} only has one attribute which is a primary key, skipping.")
-        } else if (columns.size == 2 && columns[1].type.isNullable) {
-            log.info("Table's second attribute is nullable, skipping.")
-        } else {
-            val keyColumns = tableDefinition.primaryKey.keyColumns
+        tableDefinition.columns.forEach { column ->
+            val version = versionMatcher(column.name)
+            val timestamp = timestampMatcher(column.name)
 
-            if (keyColumns.size == 1) {
-                if (keyColumns[0].type.type in AUTO_INC_PKS) {
-                    log.info("Generating secondary constructor, skipping primary key.")
+            val javaMemberName = strategy.getJavaMemberName(column, POJO)
 
-                    val versionMatcher = optLckMatcher(tableDefinition.database.recordVersionFields)
-                    val timestampMatcher = optLckMatcher(tableDefinition.database.recordTimestampFields)
-                    val strategy = getStrategy()
-
-                    val ctorArgs = mutableListOf<String>()
-                    val params = mutableListOf<String>()
-
-                    columns.forEach { column ->
-                        val version = versionMatcher(column.name)
-                        val timestamp = timestampMatcher(column.name)
-
-                        val javaMemberName = strategy.getJavaMemberName(column, POJO)
-
-                        if (version || timestamp) {
-                            params.add("this.$javaMemberName = null;")
-                        } else {
-                            val fullyQualifiedJavaType = getJavaType(column.type, out, POJO)
-                            val javaType = fullyQualifiedJavaType.substringAfterLast(".")
-
-                            val annotation = if (generateNonnullAnnotation() && !column.type.isNullable)
-                                "@${generatedNonnullAnnotationType().substringAfterLast(".")} "
-                            else if (generateNullableAnnotation() && column.type.isNullable)
-                                "@${generatedNullableAnnotationType().substringAfterLast(".")} "
-                            else ""
-
-                            ctorArgs.add("$annotation$javaType $javaMemberName")
-                            params.add("this.${javaMemberName} = ${javaMemberName};")
-                        }
-                    }
-
-                    out.print("public ${strategy.getJavaClassName(tableDefinition, POJO)}(").indentInc()
-                    out.print(ctorArgs.joinToString(", ")).print(")").indentDec().println(" {")
-                    out.println(params.joinToString(" ")).println("}")
-                }
+            if (version || timestamp) {
+                params.add("this.$javaMemberName = null;")
             } else {
-                TODO("composite key handling not yet implemented")
+                val type = column.getType(resolver(out))
+                val fullyQualifiedJavaType = getJavaType(type, out, POJO)
+                val javaType = fullyQualifiedJavaType.substringAfterLast(".")
+
+                val annotation = if (generateNullableAnnotation() &&
+                    (column.isIdentity || type.isNullable)
+                )
+                    "@${generatedNullableAnnotationType().substringAfterLast(".")} "
+                else if (generateNonnullAnnotation() && !type.isNullable)
+                    "@${generatedNonnullAnnotationType().substringAfterLast(".")} "
+                else
+                    ""
+
+                ctorArgs.add("$annotation$javaType $javaMemberName")
+                params.add("this.${javaMemberName} = ${javaMemberName};")
             }
         }
+
+        out.print("public ${strategy.getJavaClassName(tableDefinition, POJO)}(").indentInc()
+        out.print(ctorArgs.joinToString(", ")).print(")").indentDec().println(" {")
+        out.println(params.joinToString(" ")).println("}")
+    }
+
+    override fun generateCompositeKeyConstructor(tableDefinition: TableDefinition, out: JavaWriter) {
+        TODO("composite key handling not yet implemented")
     }
 
     override fun generatePojoGetter(column: TypedElementDefinition<*>, index: Int, out: JavaWriter) {
-        val isVersionColumn = optLckMatcher(column.database.recordVersionFields)(column.name)
-        val isTstampColumn = optLckMatcher(column.database.recordTimestampFields)(column.name)
+        val isVersionColumn = optimisticLockMatcher(column.database.recordVersionFields)(column.name)
+        val isTstampColumn = optimisticLockMatcher(column.database.recordTimestampFields)(column.name)
+
+        out.println()
 
         if (column.type.isIdentity || isVersionColumn || isTstampColumn) {
-            out.println("@%s", Transient::class.java)
+            out.println("@%s", out.ref("java.beans.Transient"))
         }
 
-        super.generatePojoGetter(column, index, out)
+        val strategy = getStrategy()
+
+        if (column is ColumnDefinition) {
+            printColumnJPAAnnotation(out, column)
+        }
+
+        generateValidationAnnotations(
+            generateValidationAnnotations(),
+            Java,
+            out,
+            column,
+            getJavaType(column.getType(resolver(out)), out),
+            resolver(out)
+        )
+
+        if (column.type.isNullable || column.type.isIdentity || column.type.isDefaulted || isVersionColumn || isTstampColumn) {
+            printNullableAnnotation(out)
+        } else {
+            printNonnullAnnotation(out)
+        }
+
+        out.overrideIf(generateInterfaces())
+
+        val columnType = out.ref(getJavaType(column.getType(resolver(out, POJO)), out, POJO))
+        out.println("public %s %s() {", columnType, strategy.getJavaGetterName(column, POJO))
+        out.println("return this.%s;", strategy.getJavaMemberName(column, POJO))
+        out.println("}")
     }
 
     companion object {
         private val log: JooqLogger = JooqLogger.getLogger(DomainGenerator::class.java)
-
-        private val AUTO_INC_PKS = setOf(
-            SQLDataType.SMALLINT.typeName,
-            SQLDataType.INTEGER.typeName,
-            SQLDataType.DECIMAL_INTEGER.typeName,
-            SQLDataType.BIGINT.typeName
-        )
-
-        private val optLckMatcher: (Array<String>) -> (String) -> Boolean = { optimisticFields ->
-            { name ->
-                if (optimisticFields.isEmpty()) {
-                    false
-                } else {
-                    optimisticFields.any { it.toRegex().matches(name) }
-                }
-            }
-        }
     }
 
 }
