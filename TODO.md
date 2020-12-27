@@ -1,7 +1,7 @@
 # TODO
 
 ## General
-* Wiki: finish documentation :x:
+* Wiki: keep it up2date :bangbang:
 
 ### Release v0.1.x
 * remove optimistic locking related fields from domain objects if possible :heavy_check_mark:
@@ -14,7 +14,8 @@
 * write some tests :x:
 
 ### Release v0.3.x
-* allow composite primary keys :x:
+* CRUDService: provide an "update with where condition" method :x: 
+* DomainGenerator: allow composite primary keys :x:
 
 ### Release v0.4.x
 * make everything more configurable :x:
