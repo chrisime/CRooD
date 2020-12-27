@@ -41,7 +41,7 @@ import java.util.stream.Stream
  *
  * @author Christian Meyer &ltchristian.meyer@gmail.com:gt;
  */
-abstract class CRUDService<R : UpdatableRecord<R>, ID : Any, D : IdentifiableDomain>(private val dsl: DSLContext) {
+abstract class CRooDService<R : UpdatableRecord<R>, ID : Any, D : IdentifiableDomain>(private val dsl: DSLContext) {
 
     private val rTable: Table<R>
 
