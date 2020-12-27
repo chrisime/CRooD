@@ -19,20 +19,17 @@ repositories {
 
 dependencies {
     api(platform("org.jooq:jooq-parent:3.14.4"))
-    compileOnly("org.jooq:jooq-codegen")
     compileOnly("org.jooq:jooq-meta")
+    compileOnly("org.jooq:jooq")
 
-    api("org.jetbrains.kotlin:kotlin-stdlib")
-    implementation("org.jetbrains.kotlin:kotlin-reflect")
+    api("org.jetbrains.kotlin:kotlin-stdlib") {
+        isTransitive = false
+    }
+    implementation("org.jetbrains.kotlin:kotlin-reflect") {
+        isTransitive = false
+    }
 
     compileOnly("org.slf4j:slf4j-api")
-
-    testImplementation("org.jetbrains.kotlin:kotlin-test") {
-        isTransitive = false
-    }
-    testImplementation("org.jetbrains.kotlin:kotlin-test-junit") {
-        isTransitive = false
-    }
 }
 
 java {
