@@ -29,6 +29,8 @@ dependencies {
         isTransitive = false
     }
 
+    implementation("org.yaml:snakeyaml:1.27")
+
     compileOnly("org.slf4j:slf4j-api")
 }
 

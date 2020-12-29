@@ -1,0 +1,3 @@
+serialization:
+  annotations:
+    transient: false
