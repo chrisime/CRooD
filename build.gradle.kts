@@ -19,8 +19,8 @@ repositories {
 
 dependencies {
     api(platform("org.jooq:jooq-parent:3.14.4"))
+    compileOnly("org.jooq:jooq-codegen")
     compileOnly("org.jooq:jooq-meta")
-    compileOnly("org.jooq:jooq")
 
     api("org.jetbrains.kotlin:kotlin-stdlib") {
         isTransitive = false
