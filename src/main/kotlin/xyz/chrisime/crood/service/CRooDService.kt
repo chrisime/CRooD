@@ -24,7 +24,8 @@ import org.jooq.UpdatableRecord
 import org.jooq.exception.DataAccessException
 import org.jooq.impl.DSL
 import xyz.chrisime.crood.domain.IdentifiableDomain
-import xyz.chrisime.crood.error.GenericError
+import xyz.chrisime.crood.error.DatabaseException
+import xyz.chrisime.crood.error.NoResultsFoundException
 import xyz.chrisime.crood.extensions.asType
 import xyz.chrisime.crood.extensions.getClassAtIndex
 import xyz.chrisime.crood.extensions.newInstance
@@ -66,13 +67,13 @@ abstract class CRooDService<R : UpdatableRecord<R>, ID : Any, D : IdentifiableDo
      */
     fun fetchCountWhere(condition: () -> Condition): Int =
         dsl.selectCount().from(rTable).where(condition()).fetchOne(0, Int::class.javaPrimitiveType)
-            ?: throw GenericError.Database("no results in ${rTable.name}")
+            ?: throw NoResultsFoundException("no results in ${rTable.name}")
 
     fun <F> fetchOne(field: Field<F>, value: F): F = try {
         dsl.select(field).from(rTable).where(field.eq(value)).fetchOneInto(field.type)
-            ?: throw GenericError.Database("no results in ${rTable.name}")
+            ?: throw NoResultsFoundException("no results in ${rTable.name}")
     } catch (dae: DataAccessException) {
-        throw GenericError.Database(dae.message, dae.cause)
+        throw DatabaseException(dae.message, dae.cause)
     }
 
     fun <F> fetchOptional(field: Field<F>, value: F): Optional<F> =
@@ -83,9 +84,9 @@ abstract class CRooDService<R : UpdatableRecord<R>, ID : Any, D : IdentifiableDo
 
     fun <F> fetchOneWhere(field: Field<F>, condition: () -> Condition): F = try {
         dsl.select(field).from(rTable).where(condition()).fetchOneInto(field.type)
-            ?: throw GenericError.Database("no results in ${rTable.name}")
+            ?: throw NoResultsFoundException("no results in ${rTable.name}")
     } catch (dae: DataAccessException) {
-        throw GenericError.Database(dae.message, dae.cause)
+        throw DatabaseException(dae.message, dae.cause)
     }
 
     fun <F> fetchOptionalWhere(field: Field<F>, condition: () -> Condition): Optional<F> =
@@ -101,16 +102,16 @@ abstract class CRooDService<R : UpdatableRecord<R>, ID : Any, D : IdentifiableDo
 
     fun findOneWhere(condition: () -> Condition): D = try {
         dsl.selectFrom(rTable).where(condition()).fetchOneInto(cDomain)
-            ?: throw GenericError.Database("no results in ${rTable.name}")
+            ?: throw NoResultsFoundException("no results in ${rTable.name}")
     } catch (dae: DataAccessException) {
-        throw GenericError.Database(dae.message, dae.cause)
+        throw DatabaseException(dae.message, dae.cause)
     }
 
     fun findOptionalWhere(condition: () -> Condition): Optional<D> =
         dsl.selectFrom(rTable).where(condition()).fetchOptionalInto(cDomain)
 
     fun findById(id: ID): D = dsl.selectFrom(rTable).where(id.isEqual()).fetchOneInto(cDomain)
-        ?: throw GenericError.Database("no results in ${rTable.name}")
+        ?: throw NoResultsFoundException("no results in ${rTable.name}")
 
     fun findOptionalById(id: ID): Optional<D> =
         dsl.selectFrom(rTable).where(id.isEqual()).fetchOptionalInto(cDomain)
@@ -120,7 +121,11 @@ abstract class CRooDService<R : UpdatableRecord<R>, ID : Any, D : IdentifiableDo
     fun existsWhere(condition: () -> Condition): Boolean =
         dsl.fetchExists(dsl.selectFrom(rTable).where(condition()))
 
-    fun create(source: D): Int = dsl.newRecord(rTable, source).insert()
+    fun create(source: D): Int = try {
+        dsl.newRecord(rTable, source).insert()
+    } catch (dae: DataAccessException) {
+        throw DatabaseException(dae.message, dae.cause)
+    }
 
     fun create(vararg sources: D): IntArray = create(sources.toList())
 
@@ -184,3 +189,4 @@ abstract class CRooDService<R : UpdatableRecord<R>, ID : Any, D : IdentifiableDo
     }
 
 }
+
