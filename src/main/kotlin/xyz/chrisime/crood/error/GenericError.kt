@@ -17,11 +17,13 @@ package xyz.chrisime.crood.error
 /**
  * @author Christian Meyer &lt;christian.meyer@gmail.com&gt;
  */
-sealed class GenericError(msg: String?, th: Throwable?) : RuntimeException(msg, th) {
-    class Database(msg: String? = "${ErrorTag.DATABASE.msg}: %msg", cause: Throwable? = null) : GenericError(msg, cause)
+sealed class GenericError(msg: String?, th: Throwable?) : RuntimeException(msg, th)
 
-    class General(msg: String = "${ErrorTag.GENERAL.msg}: %msg", cause: Throwable? = null) : GenericError(msg, cause)
-}
+class DatabaseException(msg: String? = "${ErrorTag.DATABASE.msg}: %msg", cause: Throwable? = null) : GenericError(msg, cause)
+
+class NoResultsFoundException(msg: String? = "${ErrorTag.DATABASE.msg}: %msg", cause: Throwable? = null) : GenericError(msg, cause)
+
+class General(msg: String = "${ErrorTag.GENERAL.msg}: %msg", cause: Throwable? = null) : GenericError(msg, cause)
 
 enum class ErrorTag(val msg: String) {
     GENERAL("general error"),
