@@ -14,6 +14,7 @@
 
 package xyz.chrisime.crood.extensions
 
+import xyz.chrisime.crood.error.General
 import java.lang.reflect.InvocationTargetException
 import java.lang.reflect.ParameterizedType
 import kotlin.reflect.full.superclasses
@@ -32,20 +33,24 @@ fun <T> Any.newInstance(index: Int = 0): T {
         when (ex) {
             is InstantiationException, is IllegalAccessException,
             is NoSuchMethodException, is InvocationTargetException -> {
-                throw GenericError.General("Can't instantiate obj of type '${this.javaClass.typeName}'.", ex)
+                throw General("Can't instantiate obj of type '${this::class.java.typeName}'.", ex)
             }
 
             else -> {
-                throw GenericError.General("Unknown error: ${ex.localizedMessage}", ex)
+                throw General("Unknown error: ${ex.localizedMessage}", ex)
             }
         }
     }
 }
 
 fun <T> Any.getClassAtIndex(index: Int): Class<T> {
-    val superClass = this::class.superclasses[0].java.genericSuperclass.asType<ParameterizedType>()
+    val parameterizedType = try {
+        this::class.superclasses[0].java.genericSuperclass.asType<ParameterizedType>()
+    } catch (ignore: TypeCastException) {
+        this::class.java.genericSuperclass.asType<ParameterizedType>()
+    }
 
-    return when (val type = superClass.actualTypeArguments[index]) {
+    return when (val type = parameterizedType.actualTypeArguments[index]) {
         is ParameterizedType -> type.rawType.asType()
         else -> type.asType()
     }
