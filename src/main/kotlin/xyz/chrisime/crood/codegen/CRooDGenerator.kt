@@ -21,8 +21,13 @@ import org.jooq.meta.Definition
 import org.jooq.meta.JavaTypeResolver
 import org.jooq.meta.TableDefinition
 import org.jooq.meta.TypedElementDefinition
+import xyz.chrisime.crood.config.CRooDYaml
+import xyz.chrisime.crood.config.Configuration
 
 internal interface CRooDGenerator : Generator {
+
+    val configuration: CRooDYaml
+        get() = Configuration.getConfig()
 
     fun generateConstructor(tableDefinition: TableDefinition, out: JavaWriter)
 

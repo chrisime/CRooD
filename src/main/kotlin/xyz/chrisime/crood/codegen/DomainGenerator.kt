@@ -35,12 +35,10 @@ open class DomainGenerator : CRooDGenerator, JavaGenerator() {
     override fun generatePojo(table: TableDefinition, out: JavaWriter) {
         generatePojoHeader(table, out, Java)
 
-        val columns = table.columns
-
         generatePojoCopyConstructor(table, out)
         generatePojoMultiConstructor(table, out)
 
-        columns.forEach { column ->
+        table.columns.forEach { column ->
             out.println(
                 "private final %s %s;",
                 out.ref(getJavaType(column.getType(resolver(out, POJO)), out, POJO)),
@@ -48,7 +46,7 @@ open class DomainGenerator : CRooDGenerator, JavaGenerator() {
             )
         }
 
-        columns.forEach {
+        table.columns.forEach {
             generatePojoGetter(it, 0, out)
         }
 
@@ -144,7 +142,8 @@ open class DomainGenerator : CRooDGenerator, JavaGenerator() {
 
         out.println()
 
-        if (column.type.isIdentity || isVersionColumn || isTstampColumn) {
+        val transientEnabled = configuration.serialization!!.annotations!!.transient!!
+        if (transientEnabled && (column.type.isIdentity || isVersionColumn || isTstampColumn)) {
             out.println("@%s", out.ref("java.beans.Transient"))
         }
 
