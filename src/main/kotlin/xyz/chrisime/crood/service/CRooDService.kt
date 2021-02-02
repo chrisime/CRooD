@@ -116,10 +116,10 @@ abstract class CRooDService<R : UpdatableRecord<R>, ID : Any, D : IdentifiableDo
     fun findOptionalById(id: ID): Optional<D> =
         dsl.selectFrom(rTable).where(id.isEqual()).fetchOptionalInto(cDomain)
 
-    fun existsById(id: ID): Boolean = dsl.fetchExists(dsl.selectFrom(rTable).where(id.isEqual()))
+    fun existsById(id: ID): Boolean = dsl.fetchExists(DSL.selectFrom(rTable).where(id.isEqual()))
 
     fun existsWhere(condition: () -> Condition): Boolean =
-        dsl.fetchExists(dsl.selectFrom(rTable).where(condition()))
+        dsl.fetchExists(DSL.selectFrom(rTable).where(condition()))
 
     fun create(source: D): Int = try {
         dsl.newRecord(rTable, source).insert()
@@ -189,4 +189,3 @@ abstract class CRooDService<R : UpdatableRecord<R>, ID : Any, D : IdentifiableDo
     }
 
 }
-
