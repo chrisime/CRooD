@@ -18,7 +18,7 @@ repositories {
 }
 
 dependencies {
-    api(platform("org.jooq:jooq-parent:3.14.4"))
+    api(platform("org.jooq:jooq-parent:3.14.7"))
     compileOnly("org.jooq:jooq-codegen")
     compileOnly("org.jooq:jooq-meta")
 
