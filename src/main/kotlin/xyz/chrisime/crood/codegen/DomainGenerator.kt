@@ -142,9 +142,14 @@ open class DomainGenerator : CRooDGenerator, JavaGenerator() {
 
         out.println()
 
-        val transientEnabled = configuration.serialization!!.annotations!!.transient!!
-        if (transientEnabled && (column.type.isIdentity || isVersionColumn || isTstampColumn)) {
-            out.println("@%s", out.ref("java.beans.Transient"))
+        val transientEnabled = serializationConfiguration.annotations.transient
+        if (transientEnabled) {
+            log.info("transient in configuration enabled")
+            if (column.type.isIdentity || isVersionColumn || isTstampColumn) {
+                out.println("@%s", out.ref("java.beans.Transient"))
+            }
+        } else {
+            log.info("transient in configuration not enabled")
         }
 
         val strategy = getStrategy()

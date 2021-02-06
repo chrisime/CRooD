@@ -26,8 +26,8 @@ import xyz.chrisime.crood.config.croodConfig
 
 internal interface CRooDGenerator : Generator {
 
-    val configuration: CRooDYaml
-        get() = croodConfig
+    val serializationConfiguration: CRooDYaml.Serialization
+        get() = croodConfig.serialization
 
     fun generateConstructor(tableDefinition: TableDefinition, out: JavaWriter)
 

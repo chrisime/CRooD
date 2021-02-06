@@ -60,9 +60,14 @@ class KDomainGenerator : CRooDGenerator, KotlinGenerator() {
             val isTstampColumn = optimisticLockMatcher(column.database.recordTimestampFields)(column.name)
             val columnType = column.getType(resolver(out))
 
-            val transientEnabled = configuration.serialization!!.annotations!!.transient!!
-            if (transientEnabled && (columnType.isIdentity || isVersionColumn || isTstampColumn)) {
-                out.println("@get:%s", out.ref("java.beans.Transient"))
+            val transientEnabled = serializationConfiguration.annotations.transient
+            if (transientEnabled) {
+                log.info("transient in configuration enabled")
+                if (columnType.isIdentity || isVersionColumn || isTstampColumn) {
+                    out.println("@get:%s", out.ref("java.beans.Transient"))
+                }
+            } else {
+                log.info("transient in configuration not enabled")
             }
 
             generateValidationAnnotations(
