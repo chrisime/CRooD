@@ -28,8 +28,11 @@ dependencies {
     implementation("org.jetbrains.kotlin:kotlin-reflect") {
         isTransitive = false
     }
+    implementation("org.jetbrains.kotlinx:kotlinx-serialization-core:1.0.1") {
+        isTransitive = false
+    }
 
-    implementation("org.yaml:snakeyaml:1.27")
+    implementation("com.charleskorn.kaml:kaml:0.26.0")
 
     compileOnly("org.slf4j:slf4j-api")
 }
