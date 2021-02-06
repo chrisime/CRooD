@@ -1,8 +1,11 @@
 plugins {
-    kotlin("jvm") version "1.4.21"
+    kotlin("jvm") version "1.4.30"
+    kotlin("plugin.serialization") version "1.4.30"
+
     `java-library`
 
     `maven-publish`
+
     id("com.jfrog.bintray") version "1.8.5"
 
     id("com.github.ben-manes.versions") version "0.36.0"
@@ -21,6 +24,8 @@ dependencies {
     api(platform("org.jooq:jooq-parent:3.14.7"))
     compileOnly("org.jooq:jooq-codegen")
     compileOnly("org.jooq:jooq-meta")
+
+    implementation("org.jetbrains.kotlin:kotlin-bom:1.4.30")
 
     api("org.jetbrains.kotlin:kotlin-stdlib") {
         isTransitive = false
