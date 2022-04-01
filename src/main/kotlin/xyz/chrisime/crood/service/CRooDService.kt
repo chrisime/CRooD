@@ -14,178 +14,215 @@
 
 package xyz.chrisime.crood.service
 
-import org.jooq.Condition
 import org.jooq.DSLContext
 import org.jooq.Field
-import org.jooq.Record
+import org.jooq.SelectConditionStep
+import org.jooq.SelectWhereStep
 import org.jooq.Table
 import org.jooq.TableField
+import org.jooq.TableRecord
+import org.jooq.UniqueKey
 import org.jooq.UpdatableRecord
 import org.jooq.exception.DataAccessException
-import org.jooq.impl.DSL
 import xyz.chrisime.crood.domain.IdentifiableDomain
-import xyz.chrisime.crood.error.DatabaseException
-import xyz.chrisime.crood.error.NoResultsFoundException
 import xyz.chrisime.crood.extensions.asType
 import xyz.chrisime.crood.extensions.getClassAtIndex
 import xyz.chrisime.crood.extensions.newInstance
-import xyz.chrisime.crood.id.Identifier
-import java.util.Optional
+import xyz.chrisime.crood.id.PrimaryKey
+import java.util.*
 import java.util.stream.Stream
 
 /**
  * Common service based on jOOQ that provides basic CRUD operations.
  *
- * @param R table record type: a record contains a row's data
+ * @param R record type: a record contains a table row's data
  * @param ID table identifier type (primary key)
  * @param D domain type: a domain contains the values of a single table row
  *
  * @author Christian Meyer &ltchristian.meyer@gmail.com:gt;
  */
-abstract class CRooDService<R : UpdatableRecord<R>, ID : Any, D : IdentifiableDomain>(private val dsl: DSLContext) {
+abstract class CRooDService<R, ID, D>(private val dsl: DSLContext)
+    where R : TableRecord<R>, ID : Any, D : IdentifiableDomain {
 
-    private val rTable: Table<R>
+    private val tableRecord = newInstance<TableRecord<R>>()
 
-    private val cDomain: Class<D>
+    private val table = tableRecord.table
 
-    private val pkFields: Array<TableField<Record, ID>>
+    private val pkFields = tableRecord.getPrimaryKeys().toTypedArray().asType<Array<TableField<R, ID>>>()
+
+    private val domain = getClassAtIndex<D>(2)
 
     init {
-        dsl.settings().isRenderFormatted = true
-
-        rTable = newInstance<UpdatableRecord<R>>().table
-        pkFields = rTable.getPrimaryKeys()
-        cDomain = getClassAtIndex(2)
-
-        dsl.configuration().recordUnmapperProvider().provide(cDomain, rTable.recordType())
-        dsl.configuration().recordMapperProvider().provide(rTable.recordType(), cDomain)
+        dsl.configuration().recordUnmapperProvider().provide(domain, table.recordType())
+        dsl.configuration().recordMapperProvider().provide(table.recordType(), domain)
     }
 
-    /**
-     * Returns count of rows in table filtered by given condition.
-     * @param condition predicate to filter result for
-     */
-    fun fetchCountWhere(condition: () -> Condition): Int =
-        dsl.selectCount().from(rTable).where(condition()).fetchOne(0, Int::class.javaPrimitiveType)
-            ?: throw NoResultsFoundException("no results in ${rTable.name}")
+    @Throws(DataAccessException::class)
+    fun selectCount(): Int = dsl.selectCount().from(table).fetchSingleInto(Int::class.javaPrimitiveType)
 
-    fun <F> fetchOne(field: Field<F>, value: F): F = try {
-        dsl.select(field).from(rTable).where(field.eq(value)).fetchOneInto(field.type)
-            ?: throw NoResultsFoundException("no results in ${rTable.name}")
-    } catch (dae: DataAccessException) {
-        throw DatabaseException(dae.message, dae.cause)
+    @Throws(DataAccessException::class)
+    fun selectCount(tableOps: Table<R>.() -> Table<R>): Int =
+        dsl.selectCount().from(this.table.tableOps()).fetchSingleInto(Int::class.javaPrimitiveType)
+
+    @Throws(DataAccessException::class)
+    fun existsById(id: ID): Boolean = dsl.fetchExists(table, PrimaryKey(id).equal(*pkFields))
+
+    @Throws(DataAccessException::class)
+    fun exists(tableOps: Table<R>.() -> Table<R>): Boolean = dsl.fetchExists(this.table.tableOps())
+
+    @Throws(DataAccessException::class)
+    fun <F> fetchOne(field: Field<F>, whereStep: SelectWhereStep<R>.() -> SelectConditionStep<R>): F =
+        dsl.selectFrom(table).whereStep().fetchSingleInto(field.type)
+
+    @Throws(DataAccessException::class)
+    fun <F> fetchOptional(field: Field<F>, whereStep: SelectWhereStep<R>.() -> SelectConditionStep<R>): Optional<F> =
+        dsl.selectFrom(table).whereStep().fetchOptionalInto(field.type)
+
+    @Throws(DataAccessException::class)
+    fun <F> fetchAll(field: Field<F>, whereStep: SelectWhereStep<R>.() -> SelectConditionStep<R>): Stream<F> =
+        dsl.selectFrom(table).whereStep().fetchStreamInto(field.type)
+
+    @Throws(DataAccessException::class)
+    fun findById(id: ID): D = dsl.selectFrom(table).where(PrimaryKey(id).equal(*pkFields)).fetchSingleInto(domain)
+
+    @Throws(DataAccessException::class)
+    fun findAll(): Stream<D> = dsl.selectFrom(table).fetchStreamInto(domain)
+
+    @Throws(DataAccessException::class)
+    fun findAll(whereStep: SelectWhereStep<R>.() -> SelectConditionStep<R>): Stream<D> =
+        dsl.selectFrom(table).whereStep().fetchStreamInto(domain)
+
+    @Throws(DataAccessException::class)
+    fun findOne(whereStep: SelectWhereStep<R>.() -> SelectConditionStep<R>): D =
+        dsl.selectFrom(table).whereStep().fetchSingleInto(domain)
+
+    @Throws(DataAccessException::class)
+    fun findOptional(whereStep: SelectWhereStep<R>.() -> SelectConditionStep<R>): Optional<D> =
+        dsl.selectFrom(table).whereStep().fetchOptionalInto(domain)
+
+    @Throws(DataAccessException::class)
+    fun findOptionalById(id: ID): Optional<D> = dsl.selectFrom(table).where(PrimaryKey(id).equal(*pkFields)).fetchOptionalInto(domain)
+
+    @Throws(DataAccessException::class)
+    fun create(vararg sources: D): Long = create(sources.toList())
+
+    @Throws(DataAccessException::class)
+    fun create(source: D): Long {
+        dsl.newRecord(table, source).insert()
+        return dsl.lastID().longValueExact()
     }
 
-    fun <F> fetchOptional(field: Field<F>, value: F): Optional<F> =
-        dsl.select(field).from(rTable).where(field.eq(value)).fetchOptionalInto(field.type)
-
-    fun <F> fetchAll(field: Field<F>, vararg values: F): Stream<F> =
-        dsl.select(field).from(rTable).where(field.`in`(*values)).fetchStreamInto(field.type)
-
-    fun <F> fetchOneWhere(field: Field<F>, condition: () -> Condition): F = try {
-        dsl.select(field).from(rTable).where(condition()).fetchOneInto(field.type)
-            ?: throw NoResultsFoundException("no results in ${rTable.name}")
-    } catch (dae: DataAccessException) {
-        throw DatabaseException(dae.message, dae.cause)
+    @Throws(DataAccessException::class)
+    fun create(sources: Collection<D>): Long = when {
+        sources.isEmpty() -> 0
+        sources.size == 1 -> create(sources.iterator().next())
+        else -> sources.map(::create).reduce { acc, l -> acc + l }
     }
 
-    fun <F> fetchOptionalWhere(field: Field<F>, condition: () -> Condition): Optional<F> =
-        dsl.select(field).from(rTable).where(condition()).fetchOptionalInto(field.type)
+    @Throws(DataAccessException::class)
+    fun <F> update(
+        field1: Field<F>,
+        value1: F,
+        tableOps: Table<R>.() -> Table<R>
+    ): Int {
+        val records = dsl.fetch(this.table.tableOps()).map {
+            it.with(field1, value1)
+        }
 
-    fun <F> fetchAllWhere(field: Field<F>, condition: () -> Condition): Stream<F> =
-        dsl.select(field).from(rTable).where(condition()).fetchStreamInto(field.type)
-
-    fun findAll(): Stream<D> = dsl.selectFrom(rTable).fetchStreamInto(cDomain)
-
-    fun findAllWhere(condition: () -> Condition): Stream<D> =
-        dsl.selectFrom(rTable).where(condition()).fetchStreamInto(cDomain)
-
-    fun findOneWhere(condition: () -> Condition): D = try {
-        dsl.selectFrom(rTable).where(condition()).fetchOneInto(cDomain)
-            ?: throw NoResultsFoundException("no results in ${rTable.name}")
-    } catch (dae: DataAccessException) {
-        throw DatabaseException(dae.message, dae.cause)
+        return records.storeOrBatchUpdate(field1)
     }
 
-    fun findOptionalWhere(condition: () -> Condition): Optional<D> =
-        dsl.selectFrom(rTable).where(condition()).fetchOptionalInto(cDomain)
+    @Throws(DataAccessException::class)
+    fun <F, G> update(
+        field1: Field<F>,
+        value1: F,
+        field2: Field<G>,
+        value2: G,
+        tableOps: Table<R>.() -> Table<R>
+    ): Int {
+        val records = dsl.fetch(this.table.tableOps()).map {
+            it.with(field1, value1).with(field2, value2)
+        }
 
-    fun findById(id: ID): D = dsl.selectFrom(rTable).where(id.isEqual()).fetchOneInto(cDomain)
-        ?: throw NoResultsFoundException("no results in ${rTable.name}")
-
-    fun findOptionalById(id: ID): Optional<D> =
-        dsl.selectFrom(rTable).where(id.isEqual()).fetchOptionalInto(cDomain)
-
-    fun existsById(id: ID): Boolean = dsl.fetchExists(DSL.selectFrom(rTable).where(id.isEqual()))
-
-    fun existsWhere(condition: () -> Condition): Boolean =
-        dsl.fetchExists(DSL.selectFrom(rTable).where(condition()))
-
-    fun create(source: D): Int = try {
-        dsl.newRecord(rTable, source).insert()
-    } catch (dae: DataAccessException) {
-        throw DatabaseException(dae.message, dae.cause)
+        return records.storeOrBatchUpdate(field1, field2)
     }
 
-    fun create(vararg sources: D): IntArray = create(sources.toList())
+    @Throws(DataAccessException::class)
+    fun <F, G, H> update(
+        field1: Field<F>,
+        value1: F,
+        field2: Field<G>,
+        value2: G,
+        field3: Field<H>,
+        value3: H,
+        tableOps: Table<R>.() -> Table<R>
+    ): Int {
+        val records = dsl.fetch(this.table.tableOps()).map {
+            it.with(field1, value1).with(field2, value2).with(field3, value3)
+        }
 
-    fun create(sources: Collection<D>): IntArray = when {
-        sources.isEmpty() -> intArrayOf(0)
-        sources.size == 1 -> intArrayOf(create(sources.iterator().next()))
-        else -> sources.map { src -> dsl.newRecord(rTable, src) }.map { r -> r.insert() }.toIntArray()
+        return records.storeOrBatchUpdate(field1, field2, field3)
     }
 
-    fun update(vararg sources: D): IntArray = update(sources.toList())
+    @Throws(DataAccessException::class)
+    fun <F, G, H, I> update(
+        field1: Field<F>,
+        value1: F,
+        field2: Field<G>,
+        value2: G,
+        field3: Field<H>,
+        value3: H,
+        field4: Field<I>,
+        value4: I,
+        tableOps: Table<R>.() -> Table<R>
+    ): Int {
+        val records = dsl.fetch(this.table.tableOps()).map {
+            it.with(field1, value1).with(field2, value2).with(field3, value3).with(field4, value4)
+        }
 
-    fun update(sources: Collection<D>): IntArray = updateOrDelete(sources, Operation.UPDATE)
+        return records.storeOrBatchUpdate(field1, field2, field3, field4)
+    }
 
-    fun deleteById(id: ID): Int = dsl.deleteFrom(rTable).where(id.isEqual()).execute()
+    @Throws(DataAccessException::class)
+    fun <F, G, H, I, J> update(
+        field1: Field<F>,
+        value1: F,
+        field2: Field<G>,
+        value2: G,
+        field3: Field<H>,
+        value3: H,
+        field4: Field<I>,
+        value4: I,
+        field5: Field<J>,
+        value5: J,
+        tableOps: Table<R>.() -> Table<R>
+    ): Int {
+        val records = dsl.fetch(this.table.tableOps()).map {
+            it.with(field1, value1).with(field2, value2).with(field3, value3).with(field4, value4).with(field5, value5)
+        }
 
-    fun deleteWhere(condition: () -> Condition): Int = dsl.deleteFrom(rTable).where(condition()).execute()
+        return records.storeOrBatchUpdate(field1, field2, field3, field4, field5)
+    }
 
-    fun delete(vararg sources: D): IntArray = delete(sources.toList())
+    @Throws(DataAccessException::class)
+    fun deleteById(id: ID): Int = dsl.deleteFrom(table).where(PrimaryKey(id).equal(*pkFields)).execute()
 
-    fun delete(sources: Collection<D>): IntArray = updateOrDelete(sources, Operation.DELETE)
+    @Throws(DataAccessException::class)
+    fun delete(tableOps: Table<R>.() -> Table<R>): Int = dsl.deleteFrom(this.table.tableOps()).execute()
 
-    fun truncate(): Int = dsl.truncate(rTable).restartIdentity().cascade().execute()
+    @Throws(DataAccessException::class)
+    fun truncate(): Int = dsl.truncate(table).restartIdentity().cascade().execute()
 
-    private fun setFieldForUpdateOrDelete(domains: Iterable<D>): List<UpdatableRecord<*>> = domains.map {
-        with(dsl.newRecord(rTable, it)) {
-            pkFields.forEach { pkField ->
-                changed(pkField, false)
-            }
-            this
+    @Throws(DataAccessException::class)
+    private fun List<TableRecord<R>>.storeOrBatchUpdate(vararg fields: Field<*>): Int {
+        return if (this.isEmpty()) {
+            0
+        } else if (this.size == 1) {
+            this[0].asType<UpdatableRecord<*>>().store(*fields)
+        } else {
+            dsl.batchUpdate(this.asType<List<UpdatableRecord<*>>>()).execute().fold(0) { acc, i -> acc + i }
         }
     }
 
-    private fun updateOrDelete(sources: Collection<D>, operation: Operation): IntArray = when {
-        sources.isEmpty() -> intArrayOf()
-        else -> setFieldForUpdateOrDelete(sources).let {
-            when (it.size) {
-                1 ->
-                    when (operation) {
-                        Operation.DELETE -> intArrayOf(it[0].delete())
-                        Operation.UPDATE -> intArrayOf(it[0].update())
-                    }
-                else -> when (operation) {
-                    Operation.DELETE -> it.map { r -> r.delete() }.toIntArray()
-                    Operation.UPDATE -> it.map { r -> r.update() }.toIntArray()
-                }
-            }
-        }
-    }
-
-    private fun ID.isEqual(): Condition = when (val id = this) {
-        is Identifier -> DSL.row(*pkFields).eq(DSL.row(*id.identifier))
-        else -> pkFields[0].eq(pkFields[0].dataType.convert(id))
-    }
-
-    private fun Table<*>.getPrimaryKeys() = this.keys
-        .filter { it.isPrimary }
-        .flatMap { it.fields.asType<List<TableField<Record, ID>>>() }.toTypedArray()
-
-    private enum class Operation {
-        UPDATE, DELETE
-    }
-
+    private fun TableRecord<R>.getPrimaryKeys() = this.table.keys.filter(UniqueKey<R>::isPrimary).flatMap(UniqueKey<R>::getFields)
 }

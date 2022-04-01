@@ -1,0 +1,9 @@
+{
+  "annotations" : {
+    "enableTransient" : true,
+    "enableJakarta" : true
+  },
+  "frameworks" : {
+    "isMicronaut": true
+  }
+}

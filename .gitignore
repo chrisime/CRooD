@@ -1,7 +1,15 @@
 # Ignore Gradle project-specific cache directory
-.gradle
+.gradle/
+gradle/
 
 # Ignore Gradle build output directory
-build
+build/
 
-.idea
+# Ignore IntelliJ project directory
+.idea/
+
+# Ignore META-INF contents
+META-INF/
+
+# docker data (database directory)
+**/docker/data/

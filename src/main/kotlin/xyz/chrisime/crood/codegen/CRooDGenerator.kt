@@ -21,26 +21,37 @@ import org.jooq.meta.Definition
 import org.jooq.meta.JavaTypeResolver
 import org.jooq.meta.TableDefinition
 import org.jooq.meta.TypedElementDefinition
-import xyz.chrisime.crood.config.CRooDYaml
-import xyz.chrisime.crood.config.croodConfig
+import xyz.chrisime.crood.config.CRooDConfig
+import xyz.chrisime.crood.config.CRooDConfigurationLoader
 
 internal interface CRooDGenerator : Generator {
 
-    val serializationConfiguration: CRooDYaml.Serialization
-        get() = croodConfig.serialization
+    val configuration: CRooDConfig
+        get() = CRooDConfigurationLoader.croodConfigOfUserDir
+
+    val jakartaValidation: String
+        get() = "jakarta.validation.constraints"
+
+    val javaxValidation: String
+        get() = "javax.validation.constraints"
 
     fun generateConstructor(tableDefinition: TableDefinition, out: JavaWriter)
 
     fun generateCompositeKeyConstructor(tableDefinition: TableDefinition, out: JavaWriter)
+
+    fun printNotNullAnnotation(out: JavaWriter, notNull: String)
+
+    fun printSizeAnnotation(out: JavaWriter, sizeAnnotation: String, columnTypeLength: Int)
+
+    fun printPojoHeader(out: JavaWriter, clzName: String, args: List<String>)
 
     fun generatePackage(out: JavaWriter, definition: Definition, mode: Mode) {
         out.printPackageSpecification(strategy.getJavaPackageName(definition, mode))
         out.printImports()
     }
 
-    fun generateValidationAnnotations(
+    fun generateAnnotations(
         enabled: Boolean,
-        language: Language,
         out: JavaWriter,
         column: TypedElementDefinition<*>,
         javaType: String,
@@ -52,23 +63,30 @@ internal interface CRooDGenerator : Generator {
         val columnType = column.getType(javaTypeResolver)
 
         if (!columnType.isNullable && !columnType.isDefaulted && !columnType.isIdentity) {
-            if (language == Language.Java)
-                out.println("@%s", out.ref("javax.validation.constraints.NotNull"))
-            else
-                out.println("@get:%s", out.ref("javax.validation.constraints.NotNull"))
+            val notNull = if (configuration.annotations.useJakarta) {
+                "${jakartaValidation}.NotNull"
+            } else {
+                "${javaxValidation}.NotNull"
+            }
+
+            printNotNullAnnotation(out, notNull)
         }
 
-        if ("java.lang.String" == javaType || "byte[]" == javaType) {
+        if (javaTypesWithSize.contains(javaType)) {
             val length = columnType.length
-            if (length > 0)
-                if (language == Language.Java)
-                    out.println("@%s(max = %s)", out.ref("javax.validation.constraints.Size"), length)
-                else
-                    out.println("@get:%s(max = %s)", out.ref("javax.validation.constraints.Size"), length)
+            if (length > 0) {
+                val sizeAnnotation = if (configuration.annotations.useJakarta) {
+                    "${jakartaValidation}.Size"
+                } else {
+                    "${javaxValidation}.Size"
+                }
+
+                printSizeAnnotation(out, sizeAnnotation, length)
+            }
         }
     }
 
-    fun generatePojoHeader(table: TableDefinition, out: JavaWriter, language: Language) {
+    fun generatePojoHeader(table: TableDefinition, out: JavaWriter) {
         val className = strategy.getJavaClassName(table, Mode.POJO)
         val interfaces = out.ref(strategy.getJavaClassImplements(table, Mode.POJO))
 
@@ -76,60 +94,22 @@ internal interface CRooDGenerator : Generator {
 
         out.javadoc(strategy.getFileHeader(table, Mode.POJO))
 
-        if (language == Language.Java)
-            out.println("public class %s[[before= implements ][%s]] {", className, interfaces)
-        else
-            out.println("data class %s(", className)
-
-        out.printSerial()
-
-        if (language == Language.Java) {
-            out.println()
-        }
-    }
-
-    fun generatePojoFooter(
-        table: TableDefinition,
-        out: JavaWriter,
-        language: Language,
-        equalsAndHashCodeFn: (TableDefinition, JavaWriter) -> Unit,
-        toStringFn: (TableDefinition, JavaWriter) -> Unit,
-        javaWriterFn: (JavaWriter) -> Unit
-    ) {
-
-        if (language == Language.Java) {
-            if (generatePojosEqualsAndHashCode()) equalsAndHashCodeFn(table, out)
-
-            if (generatePojosToString()) toStringFn(table, out)
-
-        } else {
-            val interfaces = out.ref(strategy.getJavaClassImplements(table, Mode.POJO))
-
-            out.println(")[[before=: ][%s]] {", interfaces)
-
-            if (generatePojosEqualsAndHashCode()) equalsAndHashCodeFn(table, out)
-
-            if (generatePojosToString()) toStringFn(table, out)
+        if (configuration.frameworks.isMicronaut) {
+            out.println("@%s", out.ref("io.micronaut.core.annotation.Introspected"))
         }
 
-        out.println().println("}")
-        javaWriterFn(out)
+        printPojoHeader(out, className, interfaces)
     }
 
     companion object {
-        internal enum class Language {
-            Java, Kotlin
-        }
+        private val javaTypesWithSize = setOf("java.lang.String", "byte[]")
 
-        internal val optimisticLockMatcher: (Array<String>) -> (String) -> Boolean = { optimisticFields ->
-            { name ->
-                if (optimisticFields.isEmpty()) {
-                    false
-                } else {
-                    optimisticFields.any { it.toRegex().matches(name) }
-                }
+        internal fun getOptimisticLockMatcher(optimisticFields: Array<String>): (String) -> Boolean = { name ->
+            if (optimisticFields.isEmpty()) {
+                false
+            } else {
+                optimisticFields.any { it.toRegex().matches(name) }
             }
         }
     }
-
 }

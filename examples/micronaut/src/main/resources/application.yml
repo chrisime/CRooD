@@ -1,0 +1,53 @@
+micronaut:
+    application:
+        name: "micronaut example"
+    server:
+        netty:
+            access-logger:
+                enabled: true
+        port: 8080
+
+datasources:
+    micronaut-ds:
+        url: jdbc:postgresql://localhost/micronaut
+        driver-class-name: org.postgresql.Driver
+        username: user
+        password: password
+        dialect: POSTGRES
+        pool-name: pg_pool
+        schema: public
+
+endpoints:
+    metrics:
+        enabled: true
+        sensitive: false
+    all:
+        enabled: true
+        sensitive: false
+        path: /actuator
+    health:
+        details-visible: anonymous
+        discovery-client:
+            enabled: true
+        disk-space:
+            enabled: true
+
+flyway:
+    datasources:
+        micronaut-ds:
+            enabled: true
+            schema: public
+            baseline-on-migrate: true
+
+jackson:
+    property-naming-strategy: SNAKE_CASE
+    locale: en_US
+    serialization:
+        write-dates-as-timestamps: false
+        indent-output: true
+    serialization-inclusion: non_null
+
+jooq:
+    datasources:
+        micronaut-ds:
+            sql-dialect: POSTGRES

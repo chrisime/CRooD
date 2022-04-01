@@ -1,0 +1,4 @@
+rootProject.name="springboot-CRooD-example"
+
+include ":generator"
+project(":generator").projectDir = new File("../generator")

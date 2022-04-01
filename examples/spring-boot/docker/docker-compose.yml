@@ -1,0 +1,17 @@
+version: '3.8'
+
+services:
+  springpostgresql:
+    image: postgres:14-alpine
+    restart: always
+    environment:
+      - POSTGRES_USER=user
+      - POSTGRES_PASSWORD=password
+      - POSTGRES_DB=spring
+    ports:
+      - "4321:5432"
+    networks:
+      - spring_net
+
+networks:
+  spring_net:

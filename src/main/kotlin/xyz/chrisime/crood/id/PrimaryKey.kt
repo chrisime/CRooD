@@ -14,14 +14,22 @@
 
 package xyz.chrisime.crood.id
 
-/**
- * @author Christian Meyer &lt;christian.meyer@gmail.com&gt;
- */
-data class CompositeIdentifier2<ID1 : Any, ID2 : Any>(
-    private val id1: ID1, private val id2: ID2
-) : Identifier {
+import org.jooq.Condition
+import org.jooq.TableField
+import org.jooq.impl.DSL
 
-    override val identifier: Array<out Any>
-        get() = arrayOf(id1, id2)
+// TODO: composite primary key
+@JvmInline
+value class PrimaryKey(private val id: Any) {
+    fun equal(vararg ids: TableField<*, *>): Condition {
+        require(ids.size == 1) {
+            "Expected only 1 primary key, actual is ${ids.size}."
+        }
 
+        require(ids[0].dataType.type.isAssignableFrom(id::class.java)) {
+            "${id::class.java.simpleName} is not compatible with type of primary key ${ids[0].dataType.type.simpleName}"
+        }
+
+        return DSL.row(*ids).equal(id)
+    }
 }

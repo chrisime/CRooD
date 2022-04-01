@@ -1,58 +1,38 @@
-plugins {
-    kotlin("jvm") version "1.4.30"
-    kotlin("plugin.serialization") version "1.4.30"
+import org.gradle.api.tasks.testing.logging.TestExceptionFormat
+import org.gradle.api.tasks.testing.logging.TestLogEvent
 
-    `java-library`
+plugins {
+    kotlin("jvm")
 
     `maven-publish`
 
-    id("com.jfrog.bintray") version "1.8.5"
-
-    id("com.github.ben-manes.versions") version "0.36.0"
+    id("com.github.ben-manes.versions")
 }
 
-version = "0.2.1-SNAPSHOT"
+version = "0.3.0-SNAPSHOT"
 group = "xyz.chrisime"
-description = "CRooD (an easy-to-use CRUD Base Repository built upon jOOQ)"
-
-repositories {
-    jcenter()
-    mavenCentral()
-}
+description = "CRooD (an easy-to-use CRUD Repository built on jOOQ)"
 
 dependencies {
-    api(platform("org.jooq:jooq-parent:3.14.7"))
-    compileOnly("org.jooq:jooq-codegen")
-    compileOnly("org.jooq:jooq-meta")
+    api(libs.jooq)
+    compileOnly(libs.bundles.jooq)
 
-    implementation("org.jetbrains.kotlin:kotlin-bom:1.4.30")
+    implementation(platform(libs.kotlin.bom))
 
-    api("org.jetbrains.kotlin:kotlin-stdlib") {
-        isTransitive = false
+    implementation(libs.json)
+
+    testImplementation(platform(libs.junit))
+    testImplementation(libs.bundles.kotest) {
+        exclude(group = "io.mockk")
     }
-    implementation("org.jetbrains.kotlin:kotlin-reflect") {
-        isTransitive = false
-    }
-    implementation("org.jetbrains.kotlinx:kotlinx-serialization-core:1.0.1") {
-        isTransitive = false
-    }
-
-    implementation("com.charleskorn.kaml:kaml:0.26.0")
-
-    compileOnly("org.slf4j:slf4j-api")
-}
-
-java {
-    sourceCompatibility = JavaVersion.VERSION_11
-    targetCompatibility = JavaVersion.VERSION_11
 }
 
 tasks {
     compileKotlin {
         kotlinOptions {
             jvmTarget = sourceCompatibility
-            apiVersion = "1.4"
-            languageVersion = "1.4"
+            apiVersion = "1.6"
+            languageVersion = "1.6"
 
             freeCompilerArgs = listOf(
                 "-Xjsr305=strict",
@@ -63,8 +43,8 @@ tasks {
     compileTestKotlin {
         kotlinOptions {
             jvmTarget = sourceCompatibility
-            apiVersion = "1.4"
-            languageVersion = "1.4"
+            apiVersion = "1.6"
+            languageVersion = "1.6"
 
             freeCompilerArgs = listOf(
                 "-Xjsr305=strict",
@@ -74,17 +54,46 @@ tasks {
     }
 
     jar {
+        metaInf {
+            from("${rootProject.path}/README.md", "${rootProject.path}/LICENSE")
+        }
+
         manifest {
             attributes(
                 mapOf(
-                    "Bundle-Name" to "crood",
+                    "Bundle-Description" to rootProject.description,
+                    "Bundle-Copyright" to copyright,
+                    "Build-Jdk-Spec" to jdkSpecVersion,
+                    "Build-Jdk" to jdkBuild,
+                    "Build-OS" to buildOs,
+                    "Bundle-Name" to rootProject.name,
+                    "Bundle-SymbolicName" to artifactName,
                     "Bundle-Version" to project.version,
                     "Bundle-License" to pomLicenseUrl,
-                    "Built-By" to "Gradle ${gradle.gradleVersion}",
-                    "Implementation-Title" to project.name,
-                    "Implementation-Version" to project.version
+                    "Built-By" to builtBy,
+                    "Created-By" to "Gradle ${gradle.gradleVersion}"
                 )
             )
+        }
+    }
+
+    java {
+        sourceCompatibility = JavaVersion.VERSION_11
+        targetCompatibility = JavaVersion.VERSION_11
+    }
+
+    test {
+        useJUnitPlatform()
+
+        testLogging {
+            showExceptions = true
+            showCauses = true
+            showStackTraces = true
+            showStandardStreams = true
+            exceptionFormat = TestExceptionFormat.FULL
+            displayGranularity = 2
+
+            events(TestLogEvent.FAILED, TestLogEvent.SKIPPED, TestLogEvent.PASSED)
         }
     }
 
@@ -100,20 +109,27 @@ tasks {
     }
 }
 
-
 fun isNonStable(version: String): Boolean {
-    val stableKeyword = listOf("RELEASE", "FINAL", "GA", "RC").any { version.toUpperCase().contains(it) }
+    val stableKeyword = listOf("RELEASE", "FINAL", "GA").any { version.toUpperCase().contains(it) }
     val regex = "^[0-9,.v-]+(-r)?$".toRegex()
     val isStable = stableKeyword || regex.matches(version)
     return isStable.not()
 }
 
 val username = "chrisime"
-val name = "Christian Meyer"
+val myname = "Christian Meyer"
+val myemail = "code@chrisime.xyz"
+val copyright = "Copyright (c) 2016-2022"
 val githubRepository = "${username}/crood"
 val githubReadme = "README.md"
 
-val artifactName = "crood"
+val buildOs = "${System.getProperty("os.name")} ${System.getProperty("os.arch")} ${System.getProperty("os.version")}"
+val builtBy = "$myname <${myemail}>"
+
+val jdkSpecVersion = System.getProperty("java.specification.version") as String
+val jdkBuild = "${System.getProperty("java.version")} (${System.getProperty("java.vendor")} ${System.getProperty("java.vm.version")})"
+
+val artifactName = project.name.toLowerCase()
 val artifactGroup = project.group.toString()
 val artifactVersion = project.version.toString()
 
@@ -138,58 +154,42 @@ publishing {
             artifactId = artifactName
             version = artifactVersion
 
-            from(components["java"])
+            from(components.getByName("java"))
             artifact(sourcesJar)
 
-            pom.withXml {
-                asNode().apply {
-                    appendNode("name", artifactName) // rootProject.name
-                    appendNode("description", pomDesc)
-                    appendNode("url", pomUrl)
-                    appendNode("licenses").appendNode("license").apply {
-                        appendNode("name", pomLicenseName)
-                        appendNode("url", pomLicenseUrl)
-                        appendNode("distribution", pomLicenseDist)
-                    }
-                    appendNode("developers").appendNode("developer").apply {
-                        appendNode("id", username)
-                        appendNode("name", name)
-                    }
-                    appendNode("scm").apply {
-                        appendNode("url", pomScmUrl)
+            pom {
+                name.set(artifactName)
+                description.set(pomDesc)
+                url.set(pomUrl)
+
+                licenses {
+                    name.set(pomLicenseName)
+                    url.set(pomLicenseUrl)
+                    distributionManagement { }
+                }
+
+                developers {
+                    developer {
+                        id.set(username)
+                        name.set(myname)
+                        email.set(myemail)
                     }
                 }
+
+                contributors {  }
+
+                scm {
+                    url.set(pomScmUrl)
+                }
+
+                organization {  }
+
+                issueManagement {  }
+
+                ciManagement {  }
+
+                distributionManagement {  }
             }
-        }
-    }
-}
-
-bintray {
-    user = project.findProperty("bintrayUser")?.toString() ?: System.getenv("bintrayUser") ?: ""
-    key = project.findProperty("bintrayKey")?.toString() ?: System.getenv("bintrayApiKey") ?: ""
-    publish = true
-
-    setPublications(artifactName)
-
-    pkg.apply {
-        this.repo = "oss"
-        this.name = artifactName
-        this.userOrg = username
-        this.githubRepo = githubRepository
-        this.vcsUrl = pomScmUrl
-        description = "CRUD Repository to be used in conjunction with included domain generator."
-        this.setLabels("kotlin", "java", "jooq", "crud", "code generation")
-        this.setLicenses(pomLicenseName)
-        this.desc = description
-        this.websiteUrl = pomUrl
-        this.issueTrackerUrl = pomIssueUrl
-        this.githubReleaseNotesFile = githubReadme
-
-        version.apply {
-            name = artifactVersion
-            desc = pomDesc
-//            released = ""
-            vcsTag = artifactVersion
         }
     }
 }

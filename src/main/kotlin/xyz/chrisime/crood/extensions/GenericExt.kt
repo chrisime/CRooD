@@ -14,18 +14,15 @@
 
 package xyz.chrisime.crood.extensions
 
-import xyz.chrisime.crood.error.General
 import java.lang.reflect.InvocationTargetException
 import java.lang.reflect.ParameterizedType
-import kotlin.reflect.full.superclasses
-import xyz.chrisime.crood.error.GenericError
 
 /**
  * Taken from http://stackoverflow.com/questions/2434041/instantiating-generics-type-in-java
  *
  * @author Christian Meyer &lt;christian.meyer@gmail.com&gt;
  */
-@Throws(GenericError::class)
+@Throws(RuntimeException::class)
 fun <T> Any.newInstance(index: Int = 0): T {
     try {
         return getClassAtIndex<T>(index).getDeclaredConstructor().newInstance()
@@ -33,30 +30,30 @@ fun <T> Any.newInstance(index: Int = 0): T {
         when (ex) {
             is InstantiationException, is IllegalAccessException,
             is NoSuchMethodException, is InvocationTargetException -> {
-                throw General("Can't instantiate obj of type '${this::class.java.typeName}'.", ex)
+                throw RuntimeException("Can't instantiate '${this::class.java.typeName}'.", ex)
             }
-
-            else -> {
-                throw General("Unknown error: ${ex.localizedMessage}", ex)
-            }
+            else -> throw RuntimeException("Unknown error: ${ex.localizedMessage}", ex)
         }
     }
 }
 
+@Throws(RuntimeException::class)
 fun <T> Any.getClassAtIndex(index: Int): Class<T> {
-    val parameterizedType = try {
-        this::class.superclasses[0].java.genericSuperclass.asType<ParameterizedType>()
-    } catch (ignore: TypeCastException) {
-        this::class.java.genericSuperclass.asType<ParameterizedType>()
+    val superClassType: ParameterizedType = when (this::class.java.genericSuperclass) {
+        is ParameterizedType -> this::class.java.genericSuperclass.asType()
+        is Class<*> -> this::class.java.genericSuperclass.asType<Class<*>>().genericSuperclass.asType()
+        else -> throw RuntimeException("unexpected type ${this::class.java.genericSuperclass}")
     }
 
-    return when (val type = parameterizedType.actualTypeArguments[index]) {
+    return when (val type = superClassType.actualTypeArguments[index]) {
         is ParameterizedType -> type.rawType.asType()
-        else -> type.asType()
+        is Class<*> -> type.asType()
+        else -> throw RuntimeException("unexpected type $type")
     }
 }
 
-inline fun <reified T : Any> Any.asType(): T = if (T::class.java.isAssignableFrom(this::class.java))
+inline fun <reified T : Any> Any.asType(): T = if (T::class.java.isAssignableFrom(this::class.java)) {
     this as T
-else
+} else {
     throw TypeCastException("Value cannot be cast to ${T::class}")
+}

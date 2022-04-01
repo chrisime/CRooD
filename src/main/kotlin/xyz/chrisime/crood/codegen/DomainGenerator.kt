@@ -22,8 +22,7 @@ import org.jooq.meta.Definition
 import org.jooq.meta.TableDefinition
 import org.jooq.meta.TypedElementDefinition
 import org.jooq.tools.JooqLogger
-import xyz.chrisime.crood.codegen.CRooDGenerator.Companion.Language.Java
-import xyz.chrisime.crood.codegen.CRooDGenerator.Companion.optimisticLockMatcher
+import xyz.chrisime.crood.codegen.CRooDGenerator.Companion.getOptimisticLockMatcher
 
 /**
  * Custom generator which additionally creates a secondary constructors, along with nullable annotations if demanded.
@@ -33,24 +32,28 @@ import xyz.chrisime.crood.codegen.CRooDGenerator.Companion.optimisticLockMatcher
 open class DomainGenerator : CRooDGenerator, JavaGenerator() {
 
     override fun generatePojo(table: TableDefinition, out: JavaWriter) {
-        generatePojoHeader(table, out, Java)
+        generatePojoHeader(table, out)
 
         generatePojoCopyConstructor(table, out)
         generatePojoMultiConstructor(table, out)
 
-        table.columns.forEach { column ->
-            out.println(
-                "private final %s %s;",
-                out.ref(getJavaType(column.getType(resolver(out, POJO)), out, POJO)),
-                getStrategy().getJavaMemberName(column, POJO)
-            )
-        }
+        generateClassFields(table, out)
 
         table.columns.forEach {
             generatePojoGetter(it, 0, out)
         }
 
-        generatePojoFooter(table, out, Java, ::generatePojoEqualsAndHashCode, ::generatePojoToString, ::closeJavaWriter)
+        if (generatePojosEqualsAndHashCode()) {
+            generatePojoEqualsAndHashCode(table, out)
+        }
+
+        if (generatePojosToString()) {
+            generatePojoToString(table, out)
+        }
+
+        out.println().println("}")
+
+        closeJavaWriter(out)
     }
 
     override fun generatePojoMultiConstructor(definition: Definition, out: JavaWriter) {
@@ -61,37 +64,37 @@ open class DomainGenerator : CRooDGenerator, JavaGenerator() {
                     return
                 }
 
-                val versionMatcher: (String) -> Boolean = optimisticLockMatcher(definition.database.recordVersionFields)
-                val timestampMatcher: (String) -> Boolean = optimisticLockMatcher(definition.database.recordTimestampFields)
+                val versionMatcher = getOptimisticLockMatcher(definition.database.recordVersionFields)
+                val timestampMatcher = getOptimisticLockMatcher(definition.database.recordTimestampFields)
                 val columns = definition.columns
+
                 val properties = columns.filterNot {
                     versionMatcher(it.name) || timestampMatcher(it.name)
                 }.map {
                     "\"${getStrategy().getJavaMemberName(it, POJO)}\""
                 }
-                out.println("\n    @%s({ [[%s]] })", out.ref("java.beans.ConstructorProperties"), properties)
+                out.println().println("@%s({ [[%s]] })", out.ref("java.beans.ConstructorProperties"), properties)
+
                 if (columns.size == 1 && columns[0].type.isIdentity) {
-                    log.info("Table ${definition.name} only has one attribute which is a primary key, skipping.")
+                    log.info("Table ${definition.schema.name}.${definition.name} only has one attribute which is a primary key, skipping.")
                 } else if (columns.size == 2 && columns[1].type.isNullable) {
-                    log.info("Table's second attribute is nullable, skipping.")
+                    log.info("Second attribute of table ${definition.schema.name}.${definition.name} is nullable, skipping.")
                 } else {
-                    if (definition.primaryKey.keyColumns.size == 1) {
+                    if (definition.primaryKey == null || definition.primaryKey.keyColumns.size == 1) {
                         generateConstructor(definition, out)
                     } else {
                         generateCompositeKeyConstructor(definition, out)
                     }
                 }
             }
-            else -> {
-                log.warn("other definition than TableDefinition not allowed")
-            }
+            else -> log.warn("other definition than TableDefinition not allowed")
         }
     }
 
     override fun generateConstructor(tableDefinition: TableDefinition, out: JavaWriter) {
         val keyColumns = tableDefinition.primaryKey.keyColumns
-        val versionMatcher: (String) -> Boolean = optimisticLockMatcher(tableDefinition.database.recordVersionFields)
-        val timestampMatcher: (String) -> Boolean = optimisticLockMatcher(tableDefinition.database.recordTimestampFields)
+        val versionMatcher = getOptimisticLockMatcher(tableDefinition.database.recordVersionFields)
+        val timestampMatcher = getOptimisticLockMatcher(tableDefinition.database.recordTimestampFields)
 
         log.info("Generating secondary constructor with primary key ${keyColumns[0].name}.")
 
@@ -113,9 +116,7 @@ open class DomainGenerator : CRooDGenerator, JavaGenerator() {
                 val fullyQualifiedJavaType = getJavaType(type, out, POJO)
                 val javaType = fullyQualifiedJavaType.substringAfterLast(".")
 
-                val annotation = if (generateNullableAnnotation() &&
-                    (column.isIdentity || type.isNullable)
-                )
+                val annotation = if (generateNullableAnnotation() && (column.isIdentity || type.isNullable))
                     "@${generatedNullableAnnotationType().substringAfterLast(".")} "
                 else if (generateNonnullAnnotation() && !type.isNullable)
                     "@${generatedNonnullAnnotationType().substringAfterLast(".")} "
@@ -129,27 +130,40 @@ open class DomainGenerator : CRooDGenerator, JavaGenerator() {
 
         out.print("public ${strategy.getJavaClassName(tableDefinition, POJO)}(").indentInc()
         out.print(ctorArgs.joinToString(", ")).print(")").indentDec().println(" {")
-        out.println(params.joinToString(" ")).println("}")
+        out.println(params.joinToString("\n")).println("}")
     }
 
     override fun generateCompositeKeyConstructor(tableDefinition: TableDefinition, out: JavaWriter) {
         TODO("composite key handling not yet implemented")
     }
 
-    override fun generatePojoGetter(column: TypedElementDefinition<*>, index: Int, out: JavaWriter) {
-        val isVersionColumn = optimisticLockMatcher(column.database.recordVersionFields)(column.name)
-        val isTstampColumn = optimisticLockMatcher(column.database.recordTimestampFields)(column.name)
+    private fun generateClassFields(table: TableDefinition, out: JavaWriter) {
+        val strategy = getStrategy()
 
         out.println()
 
-        val transientEnabled = serializationConfiguration.annotations.transient
-        if (transientEnabled) {
-            log.info("transient in configuration enabled")
-            if (column.type.isIdentity || isVersionColumn || isTstampColumn) {
-                out.println("@%s", out.ref("java.beans.Transient"))
-            }
-        } else {
-            log.info("transient in configuration not enabled")
+        table.columns.forEach { column ->
+            val dataTypeDef = column.getType(resolver(out, POJO))
+            val javaType = getJavaType(dataTypeDef, out, POJO)
+            out.println("private final %s %s;", out.ref(javaType), strategy.getJavaMemberName(column, POJO))
+        }
+    }
+
+    override fun generatePojoGetter(column: TypedElementDefinition<*>, index: Int, out: JavaWriter) {
+        val versionMatcher = getOptimisticLockMatcher(column.database.recordVersionFields)
+        val timestampMatcher = getOptimisticLockMatcher(column.database.recordTimestampFields)
+
+        out.println()
+
+        val transientEnabled = configuration.annotations.useTransient
+        if (index == 0) {
+            log.info("transient in configuration ${if (transientEnabled) "enabled" else "disabled"}")
+        }
+
+        if (transientEnabled &&
+            (column.type.isIdentity || versionMatcher(column.name) || timestampMatcher(column.name))
+        ) {
+            out.println("@%s", out.ref("java.beans.Transient"))
         }
 
         val strategy = getStrategy()
@@ -158,16 +172,17 @@ open class DomainGenerator : CRooDGenerator, JavaGenerator() {
             printColumnJPAAnnotation(out, column)
         }
 
-        generateValidationAnnotations(
+        generateAnnotations(
             generateValidationAnnotations(),
-            Java,
             out,
             column,
             getJavaType(column.getType(resolver(out)), out),
             resolver(out)
         )
 
-        if (column.type.isNullable || column.type.isIdentity || column.type.isDefaulted || isVersionColumn || isTstampColumn) {
+        if (column.type.isNullable || column.type.isIdentity || column.type.isDefaulted ||
+            versionMatcher(column.name) || timestampMatcher((column.name))
+        ) {
             printNullableAnnotation(out)
         } else {
             printNonnullAnnotation(out)
@@ -181,7 +196,21 @@ open class DomainGenerator : CRooDGenerator, JavaGenerator() {
         out.println("}")
     }
 
-    companion object {
+    override fun printNotNullAnnotation(out: JavaWriter, notNull: String) {
+        out.println("@%s", out.ref(notNull))
+    }
+
+    override fun printSizeAnnotation(out: JavaWriter, sizeAnnotation: String, columnTypeLength: Int) {
+        out.println("@%s(max = %s)", out.ref(sizeAnnotation), columnTypeLength)
+    }
+
+    override fun printPojoHeader(out: JavaWriter, clzName: String, args: List<String>) {
+        out.println("public class %s[[before= implements ][%s]] {", clzName, args)
+        out.printSerial()
+        out.println()
+    }
+
+    private companion object {
         private val log: JooqLogger = JooqLogger.getLogger(DomainGenerator::class.java)
     }
 
