@@ -22,6 +22,7 @@ import org.jooq.impl.DSL
 @JvmInline
 value class PrimaryKey(private val id: Any) {
     fun equal(vararg ids: TableField<*, *>): Condition {
+        // TODO: add check in CRooDService ~> ID.size == ids.size
         require(ids.size == 1) {
             "Expected only 1 primary key, actual is ${ids.size}."
         }
