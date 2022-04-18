@@ -18,7 +18,7 @@ import java.lang.reflect.InvocationTargetException
 import java.lang.reflect.ParameterizedType
 
 /**
- * Taken from http://stackoverflow.com/questions/2434041/instantiating-generics-type-in-java
+ * Based on http://stackoverflow.com/questions/2434041/instantiating-generics-type-in-java
  *
  * @author Christian Meyer &lt;christian.meyer@gmail.com&gt;
  */
