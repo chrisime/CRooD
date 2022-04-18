@@ -172,13 +172,10 @@ open class DomainGenerator : CRooDGenerator, JavaGenerator() {
             printColumnJPAAnnotation(out, column)
         }
 
-        generateAnnotations(
-            generateValidationAnnotations(),
-            out,
-            column,
-            getJavaType(column.getType(resolver(out)), out),
-            resolver(out)
-        )
+        if (generateValidationAnnotations()) {
+            val dataTypeDefinition = column.getType(resolver(out))
+            generateAnnotations(out, dataTypeDefinition, getJavaType(dataTypeDefinition, out))
+        }
 
         if (column.type.isNullable || column.type.isIdentity || column.type.isDefaulted ||
             versionMatcher(column.name) || timestampMatcher((column.name))

@@ -88,13 +88,10 @@ class KDomainGenerator : CRooDGenerator, KotlinGenerator() {
                 out.println("@get:%s", out.ref("java.beans.Transient"))
             }
 
-            generateAnnotations(
-                generateValidationAnnotations(),
-                out,
-                column,
-                getJavaType(column.getType(resolver(out)), out),
-                resolver(out)
-            )
+            if (generateValidationAnnotations()) {
+                val dataTypeDefinition = column.getType(resolver(out))
+                generateAnnotations(out, dataTypeDefinition, getJavaType(dataTypeDefinition, out))
+            }
 
             val nullableStr = if (
                 columnType.isIdentity || columnType.isDefaulted ||

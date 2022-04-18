@@ -17,6 +17,7 @@ package xyz.chrisime.crood.codegen
 import org.jooq.codegen.Generator
 import org.jooq.codegen.GeneratorStrategy.Mode
 import org.jooq.codegen.JavaWriter
+import org.jooq.meta.DataTypeDefinition
 import org.jooq.meta.Definition
 import org.jooq.meta.JavaTypeResolver
 import org.jooq.meta.TableDefinition
@@ -50,18 +51,7 @@ internal interface CRooDGenerator : Generator {
         out.printImports()
     }
 
-    fun generateAnnotations(
-        enabled: Boolean,
-        out: JavaWriter,
-        column: TypedElementDefinition<*>,
-        javaType: String,
-        javaTypeResolver: JavaTypeResolver
-    ) {
-        if (!enabled)
-            return
-
-        val columnType = column.getType(javaTypeResolver)
-
+    fun generateAnnotations(out: JavaWriter, columnType: DataTypeDefinition, javaType: String) {
         if (!columnType.isNullable && !columnType.isDefaulted && !columnType.isIdentity) {
             val notNull = if (configuration.annotations.useJakarta) {
                 "${jakartaValidation}.NotNull"
@@ -72,7 +62,7 @@ internal interface CRooDGenerator : Generator {
             printNotNullAnnotation(out, notNull)
         }
 
-        if (javaTypesWithSize.contains(javaType)) {
+        if (javaType in setOf("java.lang.String", "byte[]")) {
             val length = columnType.length
             if (length > 0) {
                 val sizeAnnotation = if (configuration.annotations.useJakarta) {
@@ -102,8 +92,6 @@ internal interface CRooDGenerator : Generator {
     }
 
     companion object {
-        private val javaTypesWithSize = setOf("java.lang.String", "byte[]")
-
         internal fun getOptimisticLockMatcher(optimisticFields: Array<String>): (String) -> Boolean = { name ->
             if (optimisticFields.isEmpty()) {
                 false
@@ -112,4 +100,5 @@ internal interface CRooDGenerator : Generator {
             }
         }
     }
+
 }
