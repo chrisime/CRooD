@@ -12,7 +12,7 @@ import java.util.*
 import javax.transaction.Transactional
 
 @Singleton
-open class AbcdRepository(private val dsl: DSLContext) : CRooDService<AbcdRecord, java.io.Serializable, AbcdDomain>(dsl) {
+open class AbcdRepository(private val dsl: DSLContext) : CRooDService<AbcdRecord, Long, AbcdDomain>(dsl) {
 
     init {
         dsl.settings().withExecuteWithOptimisticLocking(true)
