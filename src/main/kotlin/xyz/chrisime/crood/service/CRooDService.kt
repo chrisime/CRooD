@@ -44,17 +44,22 @@ import java.util.stream.Stream
 abstract class CRooDService<R, ID, D>(private val dsl: DSLContext)
     where R : TableRecord<R>, ID : Any, D : IdentifiableDomain {
 
-    private val tableRecord = newInstance<TableRecord<R>>()
+    private val tableRecord = newInstance<R>()
 
     private val table = tableRecord.table
 
-    private val pkFields = tableRecord.getPrimaryKeys().toTypedArray().asType<Array<TableField<R, ID>>>()
+    private val pkFields = table.keys
+        .filter(UniqueKey<R>::isPrimary)
+        .flatMap(UniqueKey<R>::getFields)
+        .toTypedArray()
+        .asType<Array<TableField<R, ID>>>()
 
     private val domain = getClassAtIndex<D>(2)
 
     init {
-        dsl.configuration().recordUnmapperProvider().provide(domain, table.recordType())
-        dsl.configuration().recordMapperProvider().provide(table.recordType(), domain)
+        val recordType = table.recordType()
+        dsl.configuration().recordUnmapperProvider().provide(domain, recordType)
+        dsl.configuration().recordMapperProvider().provide(recordType, domain)
     }
 
     @Throws(DataAccessException::class)
@@ -218,11 +223,10 @@ abstract class CRooDService<R, ID, D>(private val dsl: DSLContext)
         return if (this.isEmpty()) {
             0
         } else if (this.size == 1) {
-            this[0].asType<UpdatableRecord<*>>().store(*fields)
+            first().asType<UpdatableRecord<*>>().store(*fields)
         } else {
             dsl.batchUpdate(this.asType<List<UpdatableRecord<*>>>()).execute().fold(0) { acc, i -> acc + i }
         }
     }
 
-    private fun TableRecord<R>.getPrimaryKeys() = this.table.keys.filter(UniqueKey<R>::isPrimary).flatMap(UniqueKey<R>::getFields)
 }
