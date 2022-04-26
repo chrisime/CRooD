@@ -19,9 +19,7 @@ import org.jooq.codegen.GeneratorStrategy.Mode
 import org.jooq.codegen.JavaWriter
 import org.jooq.meta.DataTypeDefinition
 import org.jooq.meta.Definition
-import org.jooq.meta.JavaTypeResolver
 import org.jooq.meta.TableDefinition
-import org.jooq.meta.TypedElementDefinition
 import xyz.chrisime.crood.config.CRooDConfig
 import xyz.chrisime.crood.config.CRooDConfigurationLoader
 
