@@ -57,9 +57,11 @@ abstract class CRooDService<R, ID, D>(private val dsl: DSLContext)
     private val domain = getClassAtIndex<D>(2)
 
     init {
-        val recordType = table.recordType()
-        dsl.configuration().recordUnmapperProvider().provide(domain, recordType)
-        dsl.configuration().recordMapperProvider().provide(recordType, domain)
+        with(table.recordType()) {
+            val configuration = dsl.configuration()
+            configuration.recordUnmapperProvider().provide(domain, this)
+            configuration.recordMapperProvider().provide(this, domain)
+        }
     }
 
     @Throws(DataAccessException::class)

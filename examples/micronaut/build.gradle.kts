@@ -1,48 +1,79 @@
 plugins {
-    id("org.springframework.boot") version "2.6.7"
-    id("io.spring.dependency-management") version "1.0.11.RELEASE"
-
     kotlin("jvm") version "1.6.21"
-    kotlin("plugin.spring") version "1.6.21"
+    kotlin("kapt") version "1.6.21"
+    kotlin("plugin.allopen") version "1.6.21"
+
+    id("io.micronaut.minimal.application") version "3.3.2"
 
     id("nu.studer.jooq") version "7.1.1"
 
     id("com.github.ben-manes.versions") version "0.42.0"
 }
 
-description = "Spring Boot CRooD Example"
-group = "xyz.chrisime"
-version = "1.0.0-SNAPSHOT"
-
 repositories {
     mavenLocal()
     mavenCentral()
 }
 
+description = "Micronaut CRooD Example"
+group = "xyz.chrisime"
+version = "1.0-SNAPSHOT"
+
 dependencies {
-    implementation("org.springframework.boot", "spring-boot-starter-jdbc") {
-        exclude(group = "com.zaxxer")
-    }
-    implementation("org.springframework.boot", "spring-boot-starter-webflux")
+    implementation(platform("io.micronaut:micronaut-bom:3.4.2"))
+    kapt(platform("io.micronaut:micronaut-bom:3.4.2"))
 
-    implementation("com.fasterxml.jackson.module", "jackson-module-kotlin")
-
-    implementation("org.flywaydb", "flyway-core")
+    implementation("io.micronaut.flyway", "micronaut-flyway", "5.3.0")
+    implementation("io.micronaut.kotlin", "micronaut-kotlin-runtime")
+    implementation("io.micronaut", "micronaut-management")
+    implementation("io.micronaut", "micronaut-validation")
+    implementation("io.micronaut.sql", "micronaut-jooq")
 
     implementation("xyz.chrisime", "crood", "0.3.0+")
 
-//    runtimeOnly("org.postgresql", "postgresql", "42.3.4")
+    implementation("io.micronaut.data", "micronaut-data-tx")
+
+    implementation("org.slf4j", "slf4j-api", "1.7.+")
+    runtimeOnly("ch.qos.logback", "logback-classic", "1.2.+")
+
+    runtimeOnly("org.postgresql", "postgresql", "42.3.4")
     runtimeOnly("com.zaxxer", "HikariCP", "5.0.1")
+    runtimeOnly("io.micronaut.sql", "micronaut-jdbc-hikari")
 
     compileOnly("jakarta.validation", "jakarta.validation-api", "3.0.1")
-    implementation("jakarta.xml.bind", "jakarta.xml.bind-api", "3.0.0")
 
     jooqGenerator(project(":generator"))
     jooqGenerator("xyz.chrisime", "crood", "0.3.0+")
-    jooqGenerator("jakarta.xml.bind", "jakarta.xml.bind-api", "3.0.0")
 }
 
 tasks {
+    allOpen {
+        annotations("javax.transaction.Transactional")
+    }
+
+    kapt {
+        useBuildCache = false
+        keepJavacAnnotationProcessors = true
+        showProcessorTimings = true
+    }
+
+    micronaut {
+        enableNativeImage(false)
+            .version("3.4.2")
+            .runtime(io.micronaut.gradle.MicronautRuntime.NETTY)
+            .processing {
+                incremental(true)
+                    .module(project.name)
+                    .group("${project.group}")
+                    .annotations("xyz.chrisime.micronaut.*", "javax.transaction.Transactional")
+            }
+    }
+
+    java {
+        sourceCompatibility = JavaVersion.VERSION_11
+        targetCompatibility = JavaVersion.VERSION_11
+    }
+
     compileKotlin {
         dependsOn("generateJooq")
 
@@ -59,9 +90,8 @@ tasks {
         }
     }
 
-    java {
-        sourceCompatibility = JavaVersion.VERSION_11
-        targetCompatibility = JavaVersion.VERSION_11
+    application {
+        mainClass.set("xyz.chrisime.micronaut.ApplicationKt")
     }
 
     jooq {
@@ -92,7 +122,7 @@ tasks {
                                     .withGlobalKeyReferences(true)
                             }
                             target.apply {
-                                withPackageName("xyz.chrisime.springboot")
+                                withPackageName("xyz.chrisime.micronaut")
                                     .withDirectory("${project.buildDir}/generated/jooq")
                             }
                         }
