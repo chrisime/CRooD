@@ -5,6 +5,7 @@ micronaut:
         netty:
             access-logger:
                 enabled: true
+                logger-name: NETTY
         port: 8080
 
 datasources:
