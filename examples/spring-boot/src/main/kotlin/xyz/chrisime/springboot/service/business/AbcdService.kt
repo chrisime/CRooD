@@ -3,7 +3,6 @@ package xyz.chrisime.springboot.service.business
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
-import xyz.chrisime.springboot.domain.AbcdDomain
 import xyz.chrisime.springboot.dto.AbcdEfghDto
 import xyz.chrisime.springboot.service.persistence.AbcdRepository
 import xyz.chrisime.springboot.service.persistence.EfghRepository

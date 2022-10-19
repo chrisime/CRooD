@@ -13,7 +13,7 @@ import java.time.ZoneId
 
 @Singleton
 @Requires(classes = [DataAccessException::class])
-class DuplicateKeyExceptionHandler : ExceptionHandler<DataAccessException, HttpResponse<ErrorMessage>> {
+class DataAccessExceptionHandler : ExceptionHandler<DataAccessException, HttpResponse<ErrorMessage>> {
     override fun handle(request: HttpRequest<*>, exception: DataAccessException): HttpResponse<ErrorMessage> {
         return INSTANCE.status<ErrorMessage>(HttpStatus.CONFLICT)
             .body(

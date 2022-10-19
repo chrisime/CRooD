@@ -14,10 +14,6 @@ import javax.transaction.Transactional
 @Singleton
 open class AbcdRepository(private val dsl: DSLContext) : CRooDService<AbcdRecord, Long, AbcdDomain>(dsl) {
 
-    init {
-        dsl.settings().withExecuteWithOptimisticLocking(true)
-    }
-
     @Transactional
     open fun updateOne(uuid: UUID, isAvailable: Boolean, amount: Short) {
         update(ABCD.IS_AVAILABLE, isAvailable, ABCD.AMOUNT, amount) {
