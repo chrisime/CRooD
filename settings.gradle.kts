@@ -31,7 +31,7 @@ dependencyResolutionManagement {
             library("kotlin-bom", "org.jetbrains.kotlin", "kotlin-bom").version(kotlinVersion)
             library("kotlin-reflect", "org.jetbrains.kotlin", "kotlin-reflect").version(kotlinVersion)
 
-            library("json", "org.json", "json").version("20220320")
+            library("json", "org.json", "json").version("20220924")
 
             library("junit", "org.junit", "junit-bom").version(junit)
             library("kotest-junit5", "io.kotest", "kotest-runner-junit5-jvm").version(kotestVersion)

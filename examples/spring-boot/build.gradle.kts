@@ -1,9 +1,9 @@
 plugins {
-    id("org.springframework.boot") version "2.6.7"
-    id("io.spring.dependency-management") version "1.0.11.RELEASE"
+    id("org.springframework.boot") version "2.7.4"
+    id("io.spring.dependency-management") version "1.0.13.RELEASE"
 
-    kotlin("jvm") version "1.6.21"
-    kotlin("plugin.spring") version "1.6.21"
+    kotlin("jvm") version "1.7.20"
+    kotlin("plugin.spring") version "1.7.20"
 
     id("nu.studer.jooq") version "7.1.1"
 
@@ -20,26 +20,35 @@ repositories {
 }
 
 dependencies {
-    implementation("org.springframework.boot", "spring-boot-starter-jdbc") {
-        exclude(group = "com.zaxxer")
-    }
+    implementation("org.springframework.boot", "spring-boot-starter-jdbc")
+    implementation("org.springframework.boot", "spring-boot-starter-json")
     implementation("org.springframework.boot", "spring-boot-starter-webflux")
-
-    implementation("com.fasterxml.jackson.module", "jackson-module-kotlin")
 
     implementation("org.flywaydb", "flyway-core")
 
     implementation("xyz.chrisime", "crood", "0.3.0+")
 
-//    runtimeOnly("org.postgresql", "postgresql", "42.3.4")
-    runtimeOnly("com.zaxxer", "HikariCP", "5.0.1")
-
-    compileOnly("jakarta.validation", "jakarta.validation-api", "3.0.1")
     implementation("jakarta.xml.bind", "jakarta.xml.bind-api", "3.0.0")
+
+    runtimeOnly("org.postgresql", "postgresql", "42.5.0")
+
+    compileOnly("jakarta.validation", "jakarta.validation-api", "3.0.2")
 
     jooqGenerator(project(":generator"))
     jooqGenerator("xyz.chrisime", "crood", "0.3.0+")
     jooqGenerator("jakarta.xml.bind", "jakarta.xml.bind-api", "3.0.0")
+}
+
+configurations {
+    all {
+        resolutionStrategy.eachDependency {
+            if (requested.name == "jackson-databind") {
+                useVersion("2.13.4.2")   // always keep version in sync
+            } else if (requested.name == "snakeyaml") {
+                useVersion("1.32")
+            }
+        }
+    }
 }
 
 tasks {
@@ -47,13 +56,12 @@ tasks {
         dependsOn("generateJooq")
 
         kotlinOptions {
-            jvmTarget = sourceCompatibility
+            jvmTarget = "${JavaVersion.VERSION_11}"
             apiVersion = "1.6"
             languageVersion = "1.6"
 
             freeCompilerArgs = listOf(
                 "-Xjsr305=strict",
-                "-Xstrict-java-nullability-assertions",
                 "-opt-in=kotlin.RequiresOptIn"
             )
         }
@@ -65,7 +73,7 @@ tasks {
     }
 
     jooq {
-        version.set("3.16.6")
+        version.set("3.17.4")
         configurations {
             create("main") {
                 generateSchemaSourceOnCompilation.set(false)

@@ -30,25 +30,23 @@ dependencies {
 tasks {
     compileKotlin {
         kotlinOptions {
-            jvmTarget = sourceCompatibility
+            jvmTarget = "${JavaVersion.VERSION_11}"
             apiVersion = "1.6"
             languageVersion = "1.6"
 
             freeCompilerArgs = listOf(
                 "-Xjsr305=strict",
-                "-Xstrict-java-nullability-assertions"
             )
         }
     }
     compileTestKotlin {
         kotlinOptions {
-            jvmTarget = sourceCompatibility
+            jvmTarget = "${JavaVersion.VERSION_11}"
             apiVersion = "1.6"
             languageVersion = "1.6"
 
             freeCompilerArgs = listOf(
                 "-Xjsr305=strict",
-                "-Xstrict-java-nullability-assertions"
             )
         }
     }

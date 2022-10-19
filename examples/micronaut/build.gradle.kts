@@ -1,9 +1,9 @@
 plugins {
-    kotlin("jvm") version "1.6.21"
-    kotlin("kapt") version "1.6.21"
-    kotlin("plugin.allopen") version "1.6.21"
+    kotlin("jvm") version "1.7.20"
+    kotlin("kapt") version "1.7.20"
+    kotlin("plugin.allopen") version "1.7.20"
 
-    id("io.micronaut.minimal.application") version "3.3.2"
+    id("io.micronaut.minimal.application") version "3.6.2"
 
     id("nu.studer.jooq") version "7.1.1"
 
@@ -20,27 +20,23 @@ group = "xyz.chrisime"
 version = "1.0-SNAPSHOT"
 
 dependencies {
-    implementation(platform("io.micronaut:micronaut-bom:3.4.2"))
-    kapt(platform("io.micronaut:micronaut-bom:3.4.2"))
+    implementation(platform("io.micronaut:micronaut-bom:3.7.2"))
+    kapt(platform("io.micronaut:micronaut-bom:3.7.2"))
 
-    implementation("io.micronaut.flyway", "micronaut-flyway", "5.3.0")
-    implementation("io.micronaut.kotlin", "micronaut-kotlin-runtime")
     implementation("io.micronaut", "micronaut-management")
-    implementation("io.micronaut", "micronaut-validation")
-    implementation("io.micronaut.sql", "micronaut-jooq")
+    implementation("io.micronaut", "micronaut-validation", "3.7.1")
+    implementation("io.micronaut.kotlin", "micronaut-kotlin-runtime")
+    implementation("io.micronaut.data", "micronaut-data-tx", "3.8.1")
+    implementation("io.micronaut.flyway", "micronaut-flyway", "5.4.1")
+    implementation("io.micronaut.sql", "micronaut-jooq", "4.7.2")
 
     implementation("xyz.chrisime", "crood", "0.3.0+")
 
-    implementation("io.micronaut.data", "micronaut-data-tx")
+    runtimeOnly("io.micronaut.sql", "micronaut-jdbc-hikari", "4.7.2")
+    runtimeOnly("org.postgresql", "postgresql", "42.5.0")
+    runtimeOnly("org.jetbrains.kotlin", "kotlin-reflect", "1.7.20")
 
-    implementation("org.slf4j", "slf4j-api", "1.7.+")
-    runtimeOnly("ch.qos.logback", "logback-classic", "1.2.+")
-
-    runtimeOnly("org.postgresql", "postgresql", "42.3.4")
-    runtimeOnly("com.zaxxer", "HikariCP", "5.0.1")
-    runtimeOnly("io.micronaut.sql", "micronaut-jdbc-hikari")
-
-    compileOnly("jakarta.validation", "jakarta.validation-api", "3.0.1")
+    compileOnly("jakarta.validation", "jakarta.validation-api", "3.0.2")
 
     jooqGenerator(project(":generator"))
     jooqGenerator("xyz.chrisime", "crood", "0.3.0+")
@@ -54,7 +50,7 @@ tasks {
     kapt {
         useBuildCache = false
         keepJavacAnnotationProcessors = true
-        showProcessorTimings = true
+//        showProcessorTimings = true
     }
 
     micronaut {
@@ -78,13 +74,12 @@ tasks {
         dependsOn("generateJooq")
 
         kotlinOptions {
-            jvmTarget = sourceCompatibility
+            jvmTarget = "${JavaVersion.VERSION_11}"
             apiVersion = "1.6"
             languageVersion = "1.6"
 
             freeCompilerArgs = listOf(
                 "-Xjsr305=strict",
-                "-Xstrict-java-nullability-assertions",
                 "-opt-in=kotlin.RequiresOptIn"
             )
         }
@@ -95,7 +90,7 @@ tasks {
     }
 
     jooq {
-        version.set("3.16.6")
+        version.set("3.17.4")
         configurations {
             create("main") {
                 generateSchemaSourceOnCompilation.set(false)
