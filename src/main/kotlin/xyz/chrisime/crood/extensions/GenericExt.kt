@@ -23,14 +23,14 @@ import java.lang.reflect.ParameterizedType
  * @author Christian Meyer &lt;christian.meyer@gmail.com&gt;
  */
 @Throws(RuntimeException::class)
-fun <T> Any.newInstance(index: Int = 0): T {
+fun <T> newInstance(index: Int = 0): T {
     try {
         return getClassAtIndex<T>(index).getDeclaredConstructor().newInstance()
     } catch (ex: Exception) {
         when (ex) {
             is InstantiationException, is IllegalAccessException,
             is NoSuchMethodException, is InvocationTargetException -> {
-                throw RuntimeException("Can't instantiate '${this::class.java.typeName}'.", ex)
+                throw RuntimeException("Can't instantiate '${Any::class.java.typeName}'.", ex)
             }
             else -> throw RuntimeException("Unknown error: ${ex.localizedMessage}", ex)
         }
@@ -38,11 +38,11 @@ fun <T> Any.newInstance(index: Int = 0): T {
 }
 
 @Throws(RuntimeException::class)
-fun <T> Any.getClassAtIndex(index: Int): Class<T> {
-    val superClassType: ParameterizedType = when (this::class.java.genericSuperclass) {
-        is ParameterizedType -> this::class.java.genericSuperclass.asType()
-        is Class<*> -> this::class.java.genericSuperclass.asType<Class<*>>().genericSuperclass.asType()
-        else -> throw RuntimeException("unexpected type ${this::class.java.genericSuperclass}")
+fun <T> getClassAtIndex(index: Int): Class<T> {
+    val superClassType: ParameterizedType = when (Any::class.java.genericSuperclass) {
+        is ParameterizedType -> Any::class.java.genericSuperclass.asType()
+        is Class<*> -> Any::class.java.genericSuperclass.asType<Class<*>>().genericSuperclass.asType()
+        else -> throw RuntimeException("unexpected type ${Any::class.java.genericSuperclass}")
     }
 
     return when (val type = superClassType.actualTypeArguments[index]) {
