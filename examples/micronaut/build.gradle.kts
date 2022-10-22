@@ -42,6 +42,16 @@ dependencies {
     jooqGenerator("xyz.chrisime", "crood", "0.3.0+")
 }
 
+configurations {
+    all {
+        resolutionStrategy.eachDependency {
+            if (requested.name == "snakeyaml") {
+                useVersion("1.33")
+            }
+        }
+    }
+}
+
 tasks {
     allOpen {
         annotations("javax.transaction.Transactional")

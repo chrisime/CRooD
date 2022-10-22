@@ -1,6 +1,6 @@
 plugins {
-    id("org.springframework.boot") version "2.7.4"
-    id("io.spring.dependency-management") version "1.0.13.RELEASE"
+    id("org.springframework.boot") version "2.7.5"
+    id("io.spring.dependency-management") version "1.0.15.RELEASE"
 
     kotlin("jvm") version "1.7.20"
     kotlin("plugin.spring") version "1.7.20"
@@ -17,6 +17,12 @@ version = "1.0.0-SNAPSHOT"
 repositories {
     mavenLocal()
     mavenCentral()
+}
+
+dependencyManagement {
+    dependencies {
+        dependency("org.yaml:snakeyaml:1.33")
+    }
 }
 
 dependencies {
@@ -37,18 +43,6 @@ dependencies {
     jooqGenerator(project(":generator"))
     jooqGenerator("xyz.chrisime", "crood", "0.3.0+")
     jooqGenerator("jakarta.xml.bind", "jakarta.xml.bind-api", "3.0.0")
-}
-
-configurations {
-    all {
-        resolutionStrategy.eachDependency {
-            if (requested.name == "jackson-databind") {
-                useVersion("2.13.4.2")   // always keep version in sync
-            } else if (requested.name == "snakeyaml") {
-                useVersion("1.32")
-            }
-        }
-    }
 }
 
 tasks {
