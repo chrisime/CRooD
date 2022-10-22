@@ -31,8 +31,8 @@ tasks {
     compileKotlin {
         kotlinOptions {
             jvmTarget = "${JavaVersion.VERSION_11}"
-            apiVersion = "1.6"
-            languageVersion = "1.6"
+            apiVersion = "1.5"
+            languageVersion = "1.5"
 
             freeCompilerArgs = listOf(
                 "-Xjsr305=strict",
@@ -42,8 +42,8 @@ tasks {
     compileTestKotlin {
         kotlinOptions {
             jvmTarget = "${JavaVersion.VERSION_11}"
-            apiVersion = "1.6"
-            languageVersion = "1.6"
+            apiVersion = "1.5"
+            languageVersion = "1.5"
 
             freeCompilerArgs = listOf(
                 "-Xjsr305=strict",
