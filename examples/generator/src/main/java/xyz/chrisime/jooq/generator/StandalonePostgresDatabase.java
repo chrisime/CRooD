@@ -25,7 +25,7 @@ public class StandalonePostgresDatabase extends PostgresDatabase {
 
     private static final String DEFAULT_FLYWAY_LOCATION = getProperty("flywayLocation", "filesystem:src/main/resources/db/migration");
 
-    private static final String DEFAULT_DOCKER_IMAGE= "postgres:latest";
+    private static final String DEFAULT_DOCKER_IMAGE= "postgres:alpine";
 
     private static final Properties JDBC_PROPERTIES;
 
