@@ -28,3 +28,13 @@ java {
     sourceCompatibility = JavaVersion.VERSION_11
     targetCompatibility = JavaVersion.VERSION_11
 }
+
+configurations {
+    all {
+        resolutionStrategy.eachDependency {
+            if (requested.group == "net.java.dev.jna") {
+                useVersion("5.9.0")
+            }
+        }
+    }
+}

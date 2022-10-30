@@ -3,7 +3,7 @@ plugins {
     kotlin("kapt") version "1.7.20"
     kotlin("plugin.allopen") version "1.7.20"
 
-    id("io.micronaut.minimal.application") version "3.6.2"
+    id("io.micronaut.minimal.application") version "3.6.3"
 
     id("nu.studer.jooq") version "7.1.1"
 
@@ -20,11 +20,11 @@ group = "xyz.chrisime"
 version = "1.0-SNAPSHOT"
 
 dependencies {
-    implementation(platform("io.micronaut:micronaut-bom:3.7.2"))
-    kapt(platform("io.micronaut:micronaut-bom:3.7.2"))
+    implementation(platform("io.micronaut:micronaut-bom:3.7.3"))
+    kapt(platform("io.micronaut:micronaut-bom:3.7.3"))
 
     implementation("io.micronaut", "micronaut-management")
-    implementation("io.micronaut", "micronaut-validation", "3.7.1")
+    implementation("io.micronaut", "micronaut-validation")
     implementation("io.micronaut.kotlin", "micronaut-kotlin-runtime")
     implementation("io.micronaut.data", "micronaut-data-tx", "3.8.1")
     implementation("io.micronaut.flyway", "micronaut-flyway", "5.4.1")
@@ -45,8 +45,8 @@ dependencies {
 configurations {
     all {
         resolutionStrategy.eachDependency {
-            if (requested.name == "snakeyaml") {
-                useVersion("1.33")
+            if (requested.name == "reactor-core") {
+                useVersion("3.4.24")
             }
         }
     }
@@ -60,7 +60,7 @@ tasks {
     kapt {
         useBuildCache = false
         keepJavacAnnotationProcessors = true
-//        showProcessorTimings = true
+        showProcessorStats = true
     }
 
     micronaut {
