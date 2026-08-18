@@ -12,3 +12,7 @@ META-INF/
 
 # docker data (database directory)
 **/docker/data/
+
+# acceptance harness artifacts
+acceptance-tests/.extracted/
+**/__pycache__/
