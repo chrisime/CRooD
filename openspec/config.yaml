@@ -1,0 +1,23 @@
+schema: jira-driven
+stack: python
+
+context: |
+  This project uses the jira-driven schema: requirements originate from
+  Jira tickets (Summary, Description, Acceptance Criteria). Behaviour
+  specs are authored as fenced Gherkin (Feature / Rule / Scenario),
+  executed by the behave runner (python stack). All user-facing content
+  is written in English.
+
+rules:
+  proposal:
+    - "Must use jira-import skill to load the Jira ticket verbatim before drafting"
+    - "Must use jira-grill-me skill"
+    # - "Must use adversarial-authoring skill"
+    # - "Must use glossary skill"
+  specs:
+    - "Must use gherkin-authoring skill"
+    - "Every Jira Acceptance Criterion must be traced to a scenario via an <!-- AC: TICKET-ID#N --> comment"
+  design:
+    - "Must use c4-diagrams skill"
+  adr:
+    - "Must use architectural-decision-records skill"

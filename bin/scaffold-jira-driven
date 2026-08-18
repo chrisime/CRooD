@@ -1,0 +1,367 @@
+#!/usr/bin/env bash
+# scaffold-jira-driven - install the jira-driven workflow into a target project.
+#
+# Runs from this repository as the template source and copies the workflow
+# material (`.agents/`, `.opencode/`, the jira-driven schema, config, and the
+# supporting files) into a target directory supplied interactively or by flag.
+#
+# Exit codes:
+#   0 success
+#   1 target / copy error
+#   2 user aborted at a conflict prompt
+#
+# Options:
+#   --target <path>   install into <path> without prompting
+#   --dry-run         print the file plan and exit without writing
+#   --force           overwrite colliding files without prompting
+#   --template-repo <path>  use <path> as the template source (default: this
+#                     repository root)
+#   -h, --help        print this help
+
+set -euo pipefail
+
+# This repository root (one directory above this script).
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+REPO_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
+
+# ---- Argument parsing (D6) ----
+TARGET=""
+DRY_RUN=0
+FORCE=0
+TEMPLATE_REPO="$REPO_ROOT"
+
+usage() {
+  sed -n '2,16p' "$0" | sed 's/^# \{0,1\}//'
+  exit 0
+}
+
+while (($#)); do
+  case "$1" in
+    --target) TARGET="${2:-}"; shift 2 ;;
+    --dry-run) DRY_RUN=1; shift ;;
+    --force) FORCE=1; shift ;;
+    --template-repo) TEMPLATE_REPO="${2:-}"; shift 2 ;;
+    -h|--help) usage ;;
+    *) echo "error: unknown argument: $1" >&2; usage ;;
+  esac
+done
+
+# ---- Resolve the target (D6): prompt or flag, never guess ----
+if [[ -z "$TARGET" ]]; then
+  if [[ -t 0 ]]; then
+    printf 'Install into directory: '
+    read -r TARGET
+  fi
+  if [[ -z "$TARGET" ]]; then
+    echo "error: no target directory given (pass --target <path>)" >&2
+    exit 1
+  fi
+fi
+
+# Target resolution (D1/D2): expand a leading ~/, then absolutize without
+# requiring any parent directory to exist.
+if [[ "$TARGET" == '~/'* ]]; then
+  TARGET="$HOME/${TARGET#\~/}"
+fi
+if [[ "$TARGET" != /* ]]; then
+  TARGET="$PWD/$TARGET"
+fi
+if [[ ! -d "$TEMPLATE_REPO" ]]; then
+  echo "error: template repo does not exist: $TEMPLATE_REPO" >&2
+  exit 1
+fi
+
+# ---- File manifest (D3): source (relative to template repo) -> destination ----
+# AGENTS.md is handled exclusively by the merger (D5), not by the copy loop.
+declare -a MANIFEST_SRC=(   ".agents"   ".opencode"   "openspec/schemas/jira-driven"   "opencode.json"   "skills-lock.json" )
+declare -a MANIFEST_DST=(   ".agents"   ".opencode"   "openspec/schemas/jira-driven"   "opencode.json"   "skills-lock.json" )
+
+# Local-only artifacts never shipped into the target.
+declare -a COPY_EXCLUDES=( "node_modules" "package-lock.json" ".cache" ".extracted" ".tmp-validate" ".venv" )
+
+# ---- Helpers ----
+log() { printf '%s\n' "$*"; }
+
+# Guard (3.1): destination exists and content differs -> ask (unless --force /
+# dry-run). Returns 0 = proceed to write, 1 = skip, 2 = abort.
+guard_write() {
+  local src="$1" dst="$2"
+  [[ -e "$dst" ]] || return 0
+  if [[ -f "$src" && -f "$dst" ]] && diff -q "$src" "$dst" >/dev/null 2>&1; then
+    return 1  # identical, nothing to do
+  fi
+  if [[ "$DRY_RUN" -eq 1 ]]; then
+    return 0  # dry-run previews everything
+  fi
+  if [[ "$FORCE" -eq 1 ]]; then
+    return 0
+  fi
+  printf 'overwrite existing %s? [y/N] ' "$dst"
+  read -r ans
+  case "$ans" in
+    y|Y|yes|Yes) return 0 ;;
+    *) echo "aborted by user" >&2; exit 2 ;;
+  esac
+}
+
+# ---- File plan (2.3) ----
+plan_write() {
+  local src="$1" dst="$2" label="$3"
+  printf '  %-22s -> %s\n' "$label" "$dst"
+}
+
+# ---- Conflict guard (3.1 / D5) ----
+# Applies per-write inside the executor; a single prompt per colliding
+# destination, never a pre-scan plus a write-time prompt.
+
+# ---- Config writer (3.2 / D4): config.jira-driven.yaml -> openspec/config.yaml ----
+write_config() {
+  local cfg_src="$TEMPLATE_REPO/docs/templates/config.jira-driven.yaml"
+  local cfg_dst="$TARGET/openspec/config.yaml"
+  if [[ ! -f "$cfg_src" ]]; then
+    echo "error: jira-driven config template missing: $cfg_src" >&2
+    exit 1
+  fi
+  if [[ "$DRY_RUN" -eq 1 ]]; then
+    plan_write "$cfg_src" "$cfg_dst" "write config"
+    return 0
+  fi
+  if [[ -e "$cfg_dst" ]] && diff -q "$cfg_src" "$cfg_dst" >/dev/null 2>&1; then
+    SKIPPED+=("$cfg_dst")
+    return 0
+  fi
+  if [[ -e "$cfg_dst" ]]; then
+    if [[ "$FORCE" -ne 1 ]]; then
+      printf 'overwrite existing %s? [y/N] ' "$cfg_dst"
+      read -r ans
+      case "$ans" in
+        y|Y|yes|Yes) ;;
+        *) echo "aborted by user" >&2; exit 2 ;;
+      esac
+    fi
+  fi
+  mkdir -p "$(dirname "$cfg_dst")"
+  cp "$cfg_src" "$cfg_dst"
+  CREATED+=("$cfg_dst")
+  return 0
+}
+
+# ---- AGENTS.md merger (3.3 / D5): append-only ----
+write_agents() {
+  local src="$TEMPLATE_REPO/AGENTS.md"
+  local dst="$TARGET/AGENTS.md"
+  local marker='openspec-git-discipline'
+  if [[ ! -f "$src" ]]; then
+    echo "error: template AGENTS.md missing: $src" >&2
+    exit 1
+  fi
+  if [[ -f "$dst" && -s "$dst" ]]; then
+    if grep -q "$marker" "$dst" 2>/dev/null; then
+      SKIPPED+=("$dst")
+      return 0  # already merged
+    fi
+    if [[ "$DRY_RUN" -eq 1 ]]; then
+      plan_write "$src" "$dst" "merge AGENTS.md"
+      return 0
+    fi
+    if [[ "$FORCE" -eq 1 ]]; then
+      printf '\n' >> "$dst"
+      sed -n '/^# AGENTS.md/,$p' "$src" | sed '1d' >> "$dst"
+      MODIFIED+=("$dst")
+      return 0
+    fi
+    printf 'append git-discipline instruction to existing %s? [y/N] ' "$dst"
+    read -r ans
+    case "$ans" in
+      y|Y|yes|Yes)
+        printf '\n' >> "$dst"
+        sed -n '/^# AGENTS.md/,$p' "$src" | sed '1d' >> "$dst"
+        MODIFIED+=("$dst")
+        return 0 ;;
+      *) echo "aborted by user" >&2; exit 2 ;;
+    esac
+  else
+    if [[ "$DRY_RUN" -eq 1 ]]; then
+      plan_write "$src" "$dst" "copy file"
+      return 0
+    fi
+    mkdir -p "$(dirname "$dst")"
+    cp "$src" "$dst"
+    CREATED+=("$dst")
+  fi
+  return 0
+}
+
+# ---- Executor (3.4): run the manifest in order ----
+declare -a CREATED=() MODIFIED=() SKIPPED=()
+
+# ---- Acceptance harness materialization (D2) ----
+# The acceptance-test-authoring skill's reference pack is the single source of
+# truth for the harness. Copy the pack files into <target>/acceptance-tests/,
+# turn references/gherkin-lintrc.json into acceptance-tests/.gherkin-lintrc, and
+# create the empty steps/ and pages/ directories the layout contract requires.
+reference_pack_files() {
+  local pack_root="$1"
+  printf '%s\n' \
+    "extract_gherkin.py" \
+    "openspec_effective_spec.py" \
+    "run_acceptance.py" \
+    "ac_traceability.py" \
+    "behave.ini" \
+    "environment.py"
+}
+
+materialize_acceptance_tests() {
+  local pack_root="$TEMPLATE_REPO/.agents/skills/acceptance-test-authoring/references"
+  local dst_root="$TARGET/acceptance-tests"
+  local f src dst g
+
+  for f in $(reference_pack_files "$pack_root"); do
+    src="$pack_root/python/$f"
+    dst="$dst_root/$f"
+    if [[ ! -f "$src" ]]; then
+      echo "error: reference pack file missing: $src" >&2
+      exit 1
+    fi
+    if [[ "$DRY_RUN" -eq 1 ]]; then
+      plan_write "$src" "$dst" "copy harness"
+      continue
+    fi
+    if [[ -e "$dst" ]]; then
+      if diff -q "$src" "$dst" >/dev/null 2>&1; then
+        SKIPPED+=("$dst"); continue
+      fi
+      guard_write "$src" "$dst"
+    fi
+    mkdir -p "$(dirname "$dst")"
+    cp "$src" "$dst"
+    CREATED+=("$dst")
+  done
+
+  src="$pack_root/gherkin-lintrc.json"
+  dst="$dst_root/.gherkin-lintrc"
+  if [[ ! -f "$src" ]]; then
+    echo "error: reference gherkin-lintrc missing: $src" >&2
+    exit 1
+  fi
+  if [[ "$DRY_RUN" -eq 1 ]]; then
+    plan_write "$src" "$dst" "copy lintrc"
+  elif [[ -e "$dst" ]] && diff -q "$src" "$dst" >/dev/null 2>&1; then
+    SKIPPED+=("$dst")
+  else
+    if [[ -e "$dst" ]]; then
+      guard_write "$src" "$dst"
+    fi
+    mkdir -p "$(dirname "$dst")"
+    cp "$src" "$dst"
+    CREATED+=("$dst")
+  fi
+
+  for g in steps pages; do
+    dst="$dst_root/$g"
+    if [[ "$DRY_RUN" -eq 1 ]]; then
+      plan_write "$dst" "$dst" "mkdir dir"
+      continue
+    fi
+    if [[ -d "$dst" ]]; then
+      SKIPPED+=("$dst")
+    else
+      mkdir -p "$dst"
+      CREATED+=("$dst")
+    fi
+  done
+}
+
+exec_manifest() {
+  local i src dst
+  for i in "${!MANIFEST_SRC[@]}"; do
+    src="$TEMPLATE_REPO/${MANIFEST_SRC[$i]}"
+    dst="$TARGET/${MANIFEST_DST[$i]}"
+    if [[ -d "$src" ]]; then
+      if [[ "$DRY_RUN" -eq 1 ]]; then
+        plan_write "$src" "$dst" "copy dir"
+        continue
+      fi
+      if [[ -d "$dst" ]]; then
+        if diff -rq "$src" "$dst" >/dev/null 2>&1; then
+          SKIPPED+=("$dst"); continue
+        fi
+        guard_write "$src" "$dst"
+      fi
+      mkdir -p "$dst"
+      local ex_args=()
+      for ex in "${COPY_EXCLUDES[@]}"; do ex_args+=(--exclude="$ex"); done
+      rsync -a "${ex_args[@]}" "$src/" "$dst/"
+      CREATED+=("$dst")
+    elif [[ -f "$src" ]]; then
+      if [[ "$DRY_RUN" -eq 1 ]]; then
+        plan_write "$src" "$dst" "copy file"
+        continue
+      fi
+      if [[ -e "$dst" ]]; then
+        if diff -q "$src" "$dst" >/dev/null 2>&1; then
+          SKIPPED+=("$dst"); continue
+        fi
+        guard_write "$src" "$dst"
+      fi
+      mkdir -p "$(dirname "$dst")"
+      cp "$src" "$dst"
+      CREATED+=("$dst")
+    else
+      echo "error: template material missing: $src" >&2
+      exit 1
+    fi
+  done
+
+  # Config writer (always runs; handled specially because the source name
+  # differs from the destination name).
+  write_config
+
+  # AGENTS.md merger.
+  write_agents
+
+  # Acceptance harness materialization (D2).
+  materialize_acceptance_tests
+}
+
+# ---- Summary runner (3.5) ----
+print_summary() {
+  log ""
+  log "Installed jira-driven workflow into: $TARGET"
+  log "Created or updated:"
+  local f
+  if ((${#CREATED[@]})); then
+    for f in "${CREATED[@]}"; do log "  + $f"; done
+  else
+    log "  (none)"
+  fi
+  log "Modified:"
+  if ((${#MODIFIED[@]})); then
+    for f in "${MODIFIED[@]}"; do log "  ~ $f"; done
+  else
+    log "  (none)"
+  fi
+  log "Skipped (already present):"
+  if ((${#SKIPPED[@]})); then
+    for f in "${SKIPPED[@]}"; do log "  = $f"; done
+  else
+    log "  (none)"
+  fi
+}
+
+# ---- Main ----
+if [[ "$DRY_RUN" -eq 1 ]]; then
+  log "Dry run - nothing will be written."
+  log "Template source: $TEMPLATE_REPO"
+  log "File plan:"
+  exec_manifest
+  exit 0
+fi
+
+# Directory creation happens only in a real run (D3); dry-run never touches
+# the filesystem. Missing parents are created too.
+mkdir -p "$TARGET"
+
+exec_manifest
+print_summary
+exit 0

@@ -1,0 +1,41 @@
+#!/usr/bin/env bash
+# Launcher for opencode that resolves the Jira MCP credentials from the
+# process environment first, and falls back to a local env file.
+#
+# Precedence (per project convention):
+#   1. An already-set process/export env var (JIRA_URL / JIRA_USERNAME /
+#      JIRA_API_TOKEN) wins.
+#   2. Otherwise the value is read from the env file pointed to by
+#      OPENCODE_JIRA_ENV_FILE (default: ./.env in the repo root).
+#
+# The resolved values are exported so that opencode.json's {env:...}
+# indirection for the "jira" MCP server receives concrete values.
+
+set -euo pipefail
+
+# Repo root = one directory above this script (bin/opencode).
+ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+
+# Optional override for the env file; default to the repo-local, gitignored .env.
+ENV_FILE="${OPENCODE_JIRA_ENV_FILE:-$ROOT/.env}"
+
+load_env_var() {
+  local name="$1"
+  local value
+  if [[ -n "${!name:-}" ]]; then
+    # Process/export var wins (env-first).
+    return 0
+  fi
+  if [[ -f "$ENV_FILE" ]]; then
+    value="$(grep -E "^${name}=" "$ENV_FILE" | tail -n 1 | cut -d= -f2-)"
+    if [[ -n "$value" ]]; then
+      export "$name=$value"
+    fi
+  fi
+}
+
+load_env_var "JIRA_URL"
+load_env_var "JIRA_USERNAME"
+load_env_var "JIRA_API_TOKEN"
+
+exec "$(command -v opencode)" "$@"
