@@ -44,7 +44,7 @@ import java.util.stream.Stream
 abstract class CRooDService<R, ID, D>(private val dsl: DSLContext)
     where R : TableRecord<R>, ID : Any, D : IdentifiableDomain {
 
-    private val tableRecord = newInstance<R>()
+    private val tableRecord = this.newInstance<R>()
 
     private val table = tableRecord.table
 
@@ -54,7 +54,7 @@ abstract class CRooDService<R, ID, D>(private val dsl: DSLContext)
         .toTypedArray()
         .asType<Array<TableField<R, ID>>>()
 
-    private val domain = getClassAtIndex<D>(2)
+    private val domain = this.getClassAtIndex<D>(2)
 
     init {
         with(table.recordType()) {
